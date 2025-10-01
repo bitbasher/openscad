@@ -1,39 +1,57 @@
+/*
+ Old/Example020
+ Draw hypoid gear teeth in nut and bolt, and a spring
+ */
 
-module screw(type = 2, r1 = 15, r2 = 20, n = 7, h = 100, t = 8)
-{
+// Customizer variables
+
+/* [Hidden] */
+exNum = 20; // example number
+include <example-index.scad>
+
+echo( announceExample(exNum) );
+// Visualiztion controls set to good defaults
+//  for smooth curved surfaces
+$fs = 0.5;
+$fa = 1.0;
+
+module screw(type = 2, r1 = 15, r2 = 20, n = 7, h = 100, t = 8) {
   linear_extrude(height = h, twist = 360*t/n, convexity = t)
-  difference() {
-    circle(r2);
-    for (i = [0:n-1]) {
-        if (type == 1) rotate(i*360/n) polygon([
-            [ 2*r2, 0 ],
-            [ r2, 0 ],
-            [ r1*cos(180/n), r1*sin(180/n) ],
-            [ r2*cos(360/n), r2*sin(360/n) ],
-            [ 2*r2*cos(360/n), 2*r2*sin(360/n) ],
-        ]);
-        if (type == 2) rotate(i*360/n) polygon([
-            [ 2*r2, 0 ],
-            [ r2, 0 ],
-            [ r1*cos(90/n), r1*sin(90/n) ],
-            [ r1*cos(180/n), r1*sin(180/n) ],
-            [ r2*cos(270/n), r2*sin(270/n) ],
-            [ 2*r2*cos(270/n), 2*r2*sin(270/n) ],
-        ]);
-    }
+    difference() {
+      circle(r2);
+      for (i = [0:n-1]) {
+        if (type == 1)
+          rotate(i*360/n)
+            polygon([
+              [ 2*r2, 0 ],
+              [ r2, 0 ],
+              [   r1*cos(180/n),   r1*sin(180/n) ],
+              [   r2*cos(360/n),   r2*sin(360/n) ],
+              [ 2*r2*cos(360/n), 2*r2*sin(360/n) ]
+              ]);
+        if (type == 2)
+          rotate(i*360/n)
+            polygon([
+              [ 2*r2, 0 ],
+              [   r2, 0 ],
+              [   r1*cos(90/n),    r1*sin( 90/n) ],
+              [   r1*cos(180/n),   r1*sin(180/n) ],
+              [   r2*cos(270/n),   r2*sin(270/n) ],
+              [ 2*r2*cos(270/n), 2*r2*sin(270/n) ]
+              ]);
+      } // end for loop
+    } // end difference
   }
-}
 
-module nut(type = 2, r1 = 16, r2 = 21, r3 = 30, s = 6, n = 7, h = 100/5, t = 8/5)
-{
+module nut(type = 2, r1 = 16, r2 = 21, r3 = 30, s = 6, n = 7, h = 100/5, t = 8/5) {
   difference() {
     cylinder($fn = s, r = r3, h = h);
-    translate([ 0, 0, -h/2 ]) screw(type, r1, r2, n, h*2, t*2);
+    translate([ 0, 0, -h/2 ])
+      screw(type=type, r1, r2, n, h*2, t*2);
+    }
   }
-}
 
-module spring(r1 = 100, r2 = 10, h = 100, hr = 12)
-{
+module spring(r1 = 100, r2 = 10, h = 100, hr = 12) {
   stepsize = 1/16;
   module segment(i1, i2) {
     alpha1 = i1 * 360*r2/hr;
@@ -46,45 +64,51 @@ module spring(r1 = 100, r2 = 10, h = 100, hr = 12)
         [ cos(alpha2)*(r1-len2), sin(alpha2)*(r1-len2) ],
         [ cos(alpha2)*(r1+len2), sin(alpha2)*(r1+len2) ]
       ]);
-    }
+      }
     if (len2 < 0.01) {
       polygon([
         [ cos(alpha1)*(r1+len1), sin(alpha1)*(r1+len1) ],
         [ cos(alpha1)*(r1-len1), sin(alpha1)*(r1-len1) ],
         [ cos(alpha2)*r1, sin(alpha2)*r1 ],
-      ]);
-    }
+        ]);
+      }
     if (len1 >= 0.01 && len2 >= 0.01) {
       polygon([
         [ cos(alpha1)*(r1+len1), sin(alpha1)*(r1+len1) ],
         [ cos(alpha1)*(r1-len1), sin(alpha1)*(r1-len1) ],
         [ cos(alpha2)*(r1-len2), sin(alpha2)*(r1-len2) ],
         [ cos(alpha2)*(r1+len2), sin(alpha2)*(r1+len2) ]
-      ]);
-    }
-  }
+        ]);
+      }
+    }  // end module segment()
+
   linear_extrude(height = 100, twist = 180*h/hr,
                  $fn = (hr/r2)/stepsize, convexity = 5) {
     for (i = [ stepsize : stepsize : 1+stepsize/2 ])
       segment(i-stepsize, min(i, 1));
+    }
   }
-}
 
-echo(version=version());
-translate([ -30, 0, 0 ]) screw();
-
-translate([ 30, 0, 0 ]) nut();
-
+translate([ -30, 0, 0 ])
+  screw();
+translate([ 30, 0, 0 ])
+  nut();
 spring();
 
-// Written by Clifford Wolf <clifford@clifford.at> and Marius
-// Kintel <marius@kintel.net>
-//
-// To the extent possible under law, the author(s) have dedicated all
-// copyright and related and neighboring rights to this software to the
-// public domain worldwide. This software is distributed without any
-// warranty.
-//
-// You should have received a copy of the CC0 Public Domain
-// Dedication along with this software.
-// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+/*
+ Written by
+ Clifford Wolf <clifford@clifford.at>
+ and
+ Marius Kintel <marius@kintel.net>
+
+ update 2025 Jeff Hayes <vulcan_at_mac_com>
+
+ To the extent possible under law, the author(s) have dedicated all
+ copyright and related and neighboring rights to this software to the
+ public domain worldwide. This software is distributed without any
+ warranty.
+
+ You should have received a copy of the CC0 Public Domain
+ Dedication along with this software.
+ If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+ */

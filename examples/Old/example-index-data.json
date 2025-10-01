@@ -1,0 +1,156 @@
+{
+"group": "old",
+"examples" :
+    [
+    {
+        "number": 0,
+        "name": ["place","holder"],
+        "descr": "ignore this one"
+    },{
+        "number": 1,
+        "name": ["ball","with","holes"],
+        "descr": "Ball minus three orthogonal cylinders. Draws the OpenSCAD logo"
+    },
+    {
+        "number":2,
+        "name": ["cone","with","holes"],
+        "descr": "Cone minus three orthogonal cubes"
+    },
+    {
+        "number":3,
+        "name": ["Four","cubes","three","holes"],
+        "descr": "Four cubes minus 3 orthogonal cubes"
+    },
+    {
+        "number":4,
+        "name":"Cube minus sphere",
+        "descr": "Cube minus sphere"
+    },
+    {
+        "number":5,
+        "name":"pavillion in cylinders",
+        "descr": "A small pavillion in cylinders using a for loop to place columns."
+    },
+     {
+        "number":6,
+        "name": ["six","sider"],
+        "descr": "Using hull() and a List Comprehension to define a data vector to draw a dice"
+
+    },
+     {
+        "number":7,
+        "name":"SpringClip",
+        "descr": "A spring clip design based on a shape imported from a DXF.",
+        "attach": [
+            ["_MYNAME_NUM_","dxf"]
+        ]
+    },
+    {
+        "number":8,
+        "name":"title",
+        "descr": "Shapes imported from a DXF, G, E, and B minus X two times crossed",
+        "attach": [
+            ["_MYNAME_NUM_","dxf"]
+        ]
+    },
+     {
+        "number":9,
+        "name": ["cooling","fan"],
+        "descr": "Shapes imported from a DXF to make a small cooling fan. Uses '%' modifier to make parts transparent",
+        "attach": [
+            ["_MYNAME_NUM_","dxf"]
+        ]
+    },
+     {
+        "number":10,
+        "name": ["surface","data","import"],
+        "descr": "Using surface() to present data imported from a data file",
+        "attach": [
+            ["_MYNAME_NUM_","dat"]
+        ]
+    },
+    {
+        "number":11,
+        "name":"polyhedron",
+        "descr": "Draw a Polyhedron"
+    },
+    {
+        "number":12,
+        "name":"title",
+        "descr": "Using import() with an STL file",
+        "attach": [
+            ["_MYNAME_NUM_","stl"]
+        ]
+    },
+    {
+        "number":13,
+        "name":"title",
+        "descr": "importing shapes from a DXF file",
+        "attach": [
+            ["_MYNAME_NUM_","dxf"]
+        ]
+    },
+    {
+        "number":14,
+        "name":"intersection_for",
+        "descr": "Using intersection_for() to draw four cubes. Uses DXF file from Example 009"
+    },
+     {
+        "number":15,
+        "name":"dxf_to_shape",
+        "descr": "Using import() of file example009.dxf to draw a shape",
+        "attach": [
+            ["example009","dxf"]
+        ]
+    },
+    {
+        "number":16,
+        "name": ["carving","letters"],
+        "descr": "Carve letter M's into a a block. Import letter shapes frp, an STL.",
+        "attach": [
+            ["_MYNAME_NUM_","stl"]
+        ]
+    },
+    {
+        "number":17,
+        "name": ["customerizer","tripod","assembly"],
+        "descr": "Using customerizer to select the presentation of the model."
+    },
+    {
+        "number":18,
+        "name": ["children","matrix"],
+        "descr": "Using children() module, draw a matrix of shapesll"
+    },
+     {
+        "number":19,
+        "name": ["title","graph"],
+        "descr": "Use a lookup() module to extrapolate the heights of a row of cylinders"
+    },
+     {
+        "number":20,
+        "name": ["nut","bolt","spring"],
+        "descr": "Draw hypoid gear teeth in nut and bolt, and a spring"
+    },
+    {
+        "number":21,
+        "name": "projection",
+        "descr": "Use of projection to make a shape, and and to slice with option cut"
+    },
+     {
+        "number":22,
+        "name": ["another","rounded","box"],
+        "descr": "draw a rounded box, with and without sides"
+    },
+     {
+        "number":23,
+        "name": ["search","for","fonts"],
+        "descr": "Example combining MCAD/fonts.scad with search() function."
+    },
+     {
+        "number":24,
+        "name": ["Menger","sponge"],
+        "descr": "Draw a Menger Sponge"
+
+    }
+    ]
+}
