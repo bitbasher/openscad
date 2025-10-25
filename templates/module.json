@@ -1,4 +1,4 @@
 {
     "key" : "module",
-    "content" : "module ^~^() {\n\t\n}"
+    "content" : "\nmodule ^~^() {\n\t\n}\n"
 }

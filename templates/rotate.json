@@ -1,4 +1,4 @@
 {
     "key" : "rotate",
-    "content" : "rotate([^~^])"
+    "content" : "rotate([^~^,,]) "
 }

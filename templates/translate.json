@@ -1,4 +1,4 @@
 {
     "key" : "translate",
-    "content" : "translate([^~^])"
+    "content" : "translate([^~^,,]) "
 }
