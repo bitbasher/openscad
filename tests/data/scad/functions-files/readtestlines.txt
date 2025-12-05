@@ -1,0 +1,5 @@
+Line 1: First line
+Line 2: Second line
+Line 3: Third line with special chars äöü
+Line 4: Fourth line
+Line 5: Last line

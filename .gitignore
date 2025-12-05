@@ -45,6 +45,16 @@ object_script.openscad.Release
 /b/
 /c/
 .gcov/
+# Build directories
+/build
+build-*/
+/build-web
+# Qt generated files
+moc_*.cpp
+*_automoc.cpp
+# Dependency files
+*.d
+*.cpp.d
 /lexer_lex.cpp
 /parser_yacc.cpp
 /openscad_adaptor.cpp
@@ -71,8 +81,6 @@ src/*.old
 src/*.debug
 /Testing
 .DS_Store
-/build
-/build-web
 /release
 tests/DartConfiguration.tcl
 tests/__pycache__/
