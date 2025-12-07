@@ -1035,6 +1035,8 @@ set(CORE_SOURCES
   src/core/builtin_functions.cc
   src/core/builtin_functions_strings.cc
   src/core/builtin_functions_files.cc
+  src/core/builtin_functions_newmath.cc
+  src/core/builtin_functions_parsing.cc
   src/core/control.cc
   src/core/customizer/Annotation.cc
   src/core/customizer/CommentParser.cc

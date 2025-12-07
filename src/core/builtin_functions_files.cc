@@ -101,8 +101,214 @@ bool is_path_accessible(const fs::path& path)
   return true;
 }
 
-// Replace the resolve_path function with this version:
 
+
+// Add these utility implementations before read_directory():
+
+/**
+ * @brief Simple glob pattern matching (supports *, ?, [abc]).
+ * Based on standard glob semantics.
+ */
+bool glob_match(const std::string& text, const std::string& pattern)
+{
+  size_t t = 0, p = 0;
+  size_t star_idx = std::string::npos, match_idx = 0;
+
+  while (t < text.length()) {
+    // Characters match or pattern has ?
+    if (p < pattern.length() && (pattern[p] == '?' || pattern[p] == text[t])) {
+      ++t;
+      ++p;
+    }
+    // Pattern has *
+    else if (p < pattern.length() && pattern[p] == '*') {
+      star_idx = p;
+      match_idx = t;
+      ++p;
+    }
+    // No match, but we have a * to backtrack
+    else if (star_idx != std::string::npos) {
+      p = star_idx + 1;
+      match_idx++;
+      t = match_idx;
+    }
+    // No match and no * to backtrack
+    else {
+      return false;
+    }
+  }
+
+  // Check remaining pattern (should only be *)
+  while (p < pattern.length() && pattern[p] == '*') {
+    ++p;
+  }
+
+  return p == pattern.length();
+}
+
+std::vector<std::string> glob_filter(const std::vector<std::string>& strings, const std::string& pattern)
+{
+  std::vector<std::string> result;
+  for (const auto& str : strings) {
+    if (glob_match(str, pattern)) {
+      result.push_back(str);
+    }
+  }
+  return result;
+}
+
+// Replace the existing read_directory function with this updated version:
+
+std::optional<std::vector<std::string>> read_directory(const fs::path& path, const std::string& filter)
+{
+  if (!is_path_accessible(path)) {
+    return std::nullopt;
+  }
+
+  std::error_code ec;
+  if (!fs::is_directory(path, ec) || ec) {
+    return std::nullopt;
+  }
+
+  // Validate filter parameter
+  if (filter != "filesdirs" && filter != "fileonly" && filter != "dironly") {
+    return std::nullopt;  // Invalid filter
+  }
+
+  std::vector<std::string> entries;
+  
+  for (const auto& entry : fs::directory_iterator(path, ec)) {
+    if (ec) {
+      return std::nullopt;
+    }
+    
+    // Skip hidden files
+    if (is_hidden_file(entry.path())) {
+      continue;
+    }
+    
+    // Apply filter
+    bool is_file = fs::is_regular_file(entry.path());
+    bool is_dir = fs::is_directory(entry.path());
+    
+    if (filter == "fileonly" && !is_file) {
+      continue;
+    }
+    if (filter == "dironly" && !is_dir) {
+      continue;
+    }
+    
+    entries.push_back(entry.path().filename().string());
+  }
+
+  // Sort entries for consistent ordering
+  std::sort(entries.begin(), entries.end());
+
+  return entries;
+}
+
+// Add these new builtin function implementations before register_builtin_files():
+
+static Value builtin_read_dir_extended(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() < 1 || arguments.size() > 2) {
+    print_argCnt_warning("read_dir", arguments.size(), "1 or 2", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "read_dir() requires a string path argument, got %1$s", arguments[0]->typeName());
+    return Value::undefined.clone();
+  }
+
+  std::string filter = "filesdirs";  // Default filter
+  if (arguments.size() == 2) {
+    if (arguments[1]->type() != Value::Type::STRING) {
+      LOG(message_group::Warning, loc, arguments.documentRoot(),
+          "read_dir() filter parameter must be a string, got %1$s", arguments[1]->typeName());
+      return Value::undefined.clone();
+    }
+    filter = arguments[1]->toStrUtf8Wrapper().toString();
+  }
+
+  std::string path_str = arguments[0]->toStrUtf8Wrapper().toString();
+  fs::path resolved = resolve_path(path_str, arguments.documentRoot(), PlatformUtils::userDocumentsPath());
+  
+  auto entries = read_directory(resolved, filter);
+  if (!entries) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "read_dir(): Cannot read directory '%1$s' or invalid filter '%2$s'", path_str, filter);
+    return Value::undefined.clone();
+  }
+  
+  VectorType result(arguments.session());
+  for (const auto& entry : *entries) {
+    result.emplace_back(entry);
+  }
+  return Value{std::move(result)};
+}
+
+/**
+ * @brief Filter vector of strings using glob pattern matching.
+ * 
+ * Supports wildcard patterns:
+ * - * matches any sequence of characters
+ * - ? matches any single character
+ * - [abc] matches any character in the set
+ * 
+ * @param strings Vector of strings to filter (positional arg 0)
+ * @param pattern Glob pattern string (positional arg 1)
+ * @return Vector containing only strings that match the pattern
+ * 
+ * OpenSCAD usage: glob_search(vector, pattern) -> vector
+ * Example: glob_search(["file.txt", "file.scad", "data.txt"], "*.txt") returns ["file.txt", "data.txt"]
+ * Example: glob_search(read_dir("."), "*.scad") returns only .scad files
+ */
+static Value builtin_glob_search(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() != 2) {
+    print_argCnt_warning("glob_search", arguments.size(), "2", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::VECTOR) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "glob_search() first argument must be a vector, got %1$s", arguments[0]->typeName());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[1]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "glob_search() pattern must be a string, got %1$s", arguments[1]->typeName());
+    return Value::undefined.clone();
+  }
+
+  std::string pattern = arguments[1]->toStrUtf8Wrapper().toString();
+  
+  // Extract strings from input vector
+  std::vector<std::string> input_strings;
+  const auto& input_vec = arguments[0]->toVector();
+  for (const auto& val : input_vec) {
+    if (val.type() == Value::Type::STRING) {
+      input_strings.push_back(val.toStrUtf8Wrapper().toString());
+    }
+    // Skip non-string elements silently (like read_dir output might have)
+  }
+
+  // Apply glob filter
+  auto filtered = glob_filter(input_strings, pattern);
+  
+  // Build result vector
+  VectorType result(arguments.session());
+  for (const auto& str : filtered) {
+    result.emplace_back(str);
+  }
+  
+  return Value{std::move(result)};
+}
+
+// Replace the resolve_path function with this version:
 fs::path resolve_path(const std::string& path, const std::string& base_dir, const std::string& fallback_dir)
 {
   fs::path p = fs::u8path(path);
@@ -335,6 +541,23 @@ static Value builtin_read_lines(Arguments arguments, const Location& loc)
   return Value{std::move(result)};
 }
 
+/**
+ * @brief Read directory contents with optional filtering.
+ * 
+ * Without filter (1 argument):
+ * @param path Directory path to read (positional arg 0)
+ * @return Vector of all entries (files and directories)
+ * 
+ * With filter (2 arguments):
+ * @param path Directory path to read (positional arg 0)
+ * @param filter Filter mode string (positional arg 1): "filesdirs", "fileonly", or "dironly"
+ * @return Vector of filtered entries
+ * 
+ * OpenSCAD usage:
+ *   read_dir(path) -> [entry1, entry2, ...]
+ *   read_dir(path, filter) -> [entry1, entry2, ...]
+ * Example: read_dir(".", "fileonly") returns only files, excluding directories
+ */
 static Value builtin_read_dir(Arguments arguments, const Location& loc)
 {
   if (arguments.size() != 1) {
@@ -351,7 +574,7 @@ static Value builtin_read_dir(Arguments arguments, const Location& loc)
   std::string path_str = arguments[0]->toStrUtf8Wrapper().toString();
   fs::path resolved = resolve_path(path_str, arguments.documentRoot(), PlatformUtils::userDocumentsPath());
   
-  auto entries = read_directory(resolved);
+  auto entries = read_directory(resolved, "filesdirs");
   if (!entries) {
     LOG(message_group::Warning, loc, arguments.documentRoot(),
         "read_dir(): Cannot read directory '%1$s'", path_str);
@@ -602,9 +825,15 @@ void register_builtin_files()
                    "read_lines(path) -> vector",
                  });
 
-  Builtins::init("read_dir", new BuiltinFunction(&builtin_read_dir),
+  Builtins::init("read_dir", new BuiltinFunction(&builtin_read_dir_extended),
                  {
                    "read_dir(path) -> vector",
+                   "read_dir(path, filter) -> vector",
+                 });
+
+  Builtins::init("glob_search", new BuiltinFunction(&builtin_glob_search),
+                 {
+                   "glob_search(vector, pattern) -> vector",
                  });
 
   Builtins::init("absolute_path", new BuiltinFunction(&builtin_absolute_path),

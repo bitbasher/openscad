@@ -584,6 +584,234 @@ static Value builtin_pad_right(Arguments arguments, const Location& loc)
 }
 
 // =============================================================================
+// New String Extension Functions
+// =============================================================================
+
+/**
+ * @brief Count occurrences of a substring within a string.
+ * 
+ * @param haystack The string to search within (positional arg 0)
+ * @param needle The substring to search for (positional arg 1)
+ * @return Number of non-overlapping occurrences of needle in haystack
+ * 
+ * OpenSCAD usage: substr_count(string, substring) -> number
+ * Example: substr_count("hello world", "l") returns 3
+ */
+static Value builtin_substr_count(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() != 2) {
+    print_argCnt_warning("substr_count", arguments.size(), "2", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::STRING || arguments[1]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "substr_count() requires two string arguments");
+    return Value::undefined.clone();
+  }
+
+  std::string haystack = arguments[0]->toStrUtf8Wrapper().toString();
+  std::string needle = arguments[1]->toStrUtf8Wrapper().toString();
+
+  if (needle.empty()) {
+    return {0.0};
+  }
+
+  size_t count = 0;
+  size_t pos = 0;
+  while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+    ++count;
+    pos += needle.length();
+  }
+
+  return {static_cast<double>(count)};
+}
+
+/**
+ * @brief Find positions of substring(s) within a string.
+ * 
+ * Single substring mode:
+ * @param haystack The string to search within (positional arg 0)
+ * @param needle The substring to search for (positional arg 1)
+ * @return Vector of positions [pos1, pos2, ...] where substring occurs
+ * 
+ * Multiple substring mode:
+ * @param haystack The string to search within (positional arg 0)
+ * @param needles Vector of substrings to search for (positional arg 1)
+ * @return Vector of [[delim, pos1, pos2, ...], ...] for each delimiter
+ * 
+ * OpenSCAD usage: 
+ *   substr_positions(string, substring) -> [pos1, pos2, ...]
+ *   substr_positions(string, [sub1, sub2, ...]) -> [[sub1, pos1, ...], [sub2, pos1, ...], ...]
+ * Example: substr_positions("hello", "l") returns [2, 3]
+ * Example: substr_positions("a,b;c", [",", ";"]) returns [[",", 1], [";", 3]]
+ */
+static Value builtin_substr_positions(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() != 2) {
+    print_argCnt_warning("substr_positions", arguments.size(), "2", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "substr_positions() first argument must be a string");
+    return Value::undefined.clone();
+  }
+
+  std::string haystack = arguments[0]->toStrUtf8Wrapper().toString();
+
+  // Single substring search
+  if (arguments[1]->type() == Value::Type::STRING) {
+    std::string needle = arguments[1]->toStrUtf8Wrapper().toString();
+    
+    VectorType positions(arguments.session());
+    if (!needle.empty()) {
+      size_t pos = 0;
+      while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+        positions.emplace_back(static_cast<double>(pos));
+        pos += needle.length();
+      }
+    }
+    return Value{std::move(positions)};
+  }
+  
+  // Multiple substring search - returns [[delim, pos1, pos2, ...], ...]
+  if (arguments[1]->type() == Value::Type::VECTOR) {
+    const auto& needles = arguments[1]->toVector();
+    VectorType result(arguments.session());
+    
+    for (const auto& needle_val : needles) {
+      if (needle_val.type() != Value::Type::STRING) {
+        continue; // Skip non-string elements
+      }
+      
+      std::string needle = needle_val.toStrUtf8Wrapper().toString();
+      VectorType entry(arguments.session());
+      entry.emplace_back(needle); // First element is the delimiter itself
+      
+      if (!needle.empty()) {
+        size_t pos = 0;
+        while ((pos = haystack.find(needle, pos)) != std::string::npos) {
+          entry.emplace_back(static_cast<double>(pos));
+          pos += needle.length();
+        }
+      }
+      
+      result.emplace_back(std::move(entry));
+    }
+    
+    return Value{std::move(result)};
+  }
+
+  LOG(message_group::Warning, loc, arguments.documentRoot(),
+      "substr_positions() second argument must be a string or vector of strings");
+  return Value::undefined.clone();
+}
+
+/**
+ * @brief Replace the last occurrence of a substring.
+ * 
+ * @param haystack The string to search within (positional arg 0)
+ * @param search The substring to find (positional arg 1)
+ * @param replacement The string to replace with (positional arg 2)
+ * @return String with last occurrence replaced, or original if not found
+ * 
+ * OpenSCAD usage: replace_last(string, search, replacement) -> string
+ * Example: replace_last("hello hello", "hello", "hi") returns "hello hi"
+ */
+static Value builtin_replace_last(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() != 3) {
+    print_argCnt_warning("replace_last", arguments.size(), "3", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::STRING ||
+      arguments[1]->type() != Value::Type::STRING ||
+      arguments[2]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "replace_last() requires three string arguments");
+    return Value::undefined.clone();
+  }
+
+  std::string input = arguments[0]->toStrUtf8Wrapper().toString();
+  std::string search = arguments[1]->toStrUtf8Wrapper().toString();
+  std::string replacement = arguments[2]->toStrUtf8Wrapper().toString();
+
+  if (search.empty()) {
+    return Value{input};
+  }
+
+  size_t pos = input.rfind(search);
+  if (pos != std::string::npos) {
+    input.replace(pos, search.length(), replacement);
+  }
+
+  return Value{input};
+}
+
+/**
+ * @brief Convert string to filesystem-safe filename.
+ * 
+ * Removes or replaces characters forbidden in Windows filenames:
+ * - Forbidden chars (< > : " / \ | ? *) replaced with underscore
+ * - Control characters (0-31, 127) replaced with underscore
+ * - Leading/trailing spaces and dots trimmed
+ * - Returns "file" if result is empty
+ * 
+ * @param input The string to sanitize (positional arg 0)
+ * @return Filesystem-safe filename string
+ * 
+ * OpenSCAD usage: to_safe_filename(string) -> string
+ * Example: to_safe_filename("my<file>.txt") returns "my_file_.txt"
+ */
+static Value builtin_to_safe_filename(Arguments arguments, const Location& loc)
+{
+  if (arguments.size() != 1) {
+    print_argCnt_warning("to_safe_filename", arguments.size(), "1", loc, arguments.documentRoot());
+    return Value::undefined.clone();
+  }
+
+  if (arguments[0]->type() != Value::Type::STRING) {
+    LOG(message_group::Warning, loc, arguments.documentRoot(),
+        "to_safe_filename() requires a string argument");
+    return Value::undefined.clone();
+  }
+
+  std::string input = arguments[0]->toStrUtf8Wrapper().toString();
+  std::string result;
+  result.reserve(input.length());
+
+  // Characters forbidden in Windows filenames: < > : " / \ | ? *
+  // Also control characters (0-31) and DEL (127)
+  for (char c : input) {
+    if (c < 32 || c == 127 || 
+        c == '<' || c == '>' || c == ':' || c == '"' || 
+        c == '/' || c == '\\' || c == '|' || c == '?' || c == '*') {
+      result += '_';
+    } else {
+      result += c;
+    }
+  }
+
+  // Trim leading/trailing spaces and dots (Windows doesn't allow these)
+  while (!result.empty() && (result.front() == ' ' || result.front() == '.')) {
+    result.erase(0, 1);
+  }
+  while (!result.empty() && (result.back() == ' ' || result.back() == '.')) {
+    result.pop_back();
+  }
+
+  // If empty after sanitization, provide a default
+  if (result.empty()) {
+    result = "file";
+  }
+
+  return Value{result};
+}
+
+// =============================================================================
 // Registration
 // =============================================================================
 
@@ -667,5 +895,26 @@ void register_builtin_strings()
                  {
                    "pad_right(string, length) -> string",
                    "pad_right(string, length, char) -> string",
+                 });
+
+  Builtins::init("substr_count", new BuiltinFunction(&builtin_substr_count),
+                 {
+                   "substr_count(string, substring) -> number",
+                 });
+
+  Builtins::init("substr_positions", new BuiltinFunction(&builtin_substr_positions),
+                 {
+                   "substr_positions(string, substring) -> vector",
+                   "substr_positions(string, vector_of_substrings) -> vector",
+                 });
+
+  Builtins::init("replace_last", new BuiltinFunction(&builtin_replace_last),
+                 {
+                   "replace_last(string, search, replacement) -> string",
+                 });
+
+  Builtins::init("to_safe_filename", new BuiltinFunction(&builtin_to_safe_filename),
+                 {
+                   "to_safe_filename(string) -> string",
                  });
 }

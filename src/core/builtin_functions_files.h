@@ -121,3 +121,29 @@ std::string get_absolute_path(const std::string& path, const std::string& base_d
  */
 std::optional<std::string> get_canonical_path(const std::string& path, const std::string& base_dir, const std::string& fallback_dir);
 
+// Add these to the existing utility section (after the existing declarations):
+
+/**
+ * @brief List files in a directory with optional type filtering.
+ * @param path The directory path
+ * @param filter "filesdirs" (default), "fileonly", or "dironly"
+ * @return Vector of filenames, or std::nullopt on error
+ */
+std::optional<std::vector<std::string>> read_directory(const fs::path& path, const std::string& filter = "filesdirs");
+
+/**
+ * @brief Check if a string matches a glob pattern (supports *, ?, [abc]).
+ * @param text The string to match
+ * @param pattern The glob pattern
+ * @return true if text matches pattern
+ */
+bool glob_match(const std::string& text, const std::string& pattern);
+
+/**
+ * @brief Filter a vector of strings by glob pattern.
+ * @param strings Vector of strings to filter
+ * @param pattern Glob pattern to match
+ * @return Vector of matching strings
+ */
+std::vector<std::string> glob_filter(const std::vector<std::string>& strings, const std::string& pattern);
+
