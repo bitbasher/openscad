@@ -148,6 +148,17 @@ const ColorScheme *ColorMap::findColorScheme(const std::string& name) const
   return nullptr;
 }
 
+const RenderColorScheme *ColorMap::findRenderColorScheme(const std::string& name) const
+{
+  for (const auto& item : colorSchemeSet) {
+    RenderColorScheme *scheme = item.second.get();
+    if (name == scheme->name()) {
+      return scheme;
+    }
+  }
+  return nullptr;
+}
+
 void ColorMap::dump() const
 {
   PRINTD("Listing available color schemes...");
@@ -192,6 +203,10 @@ Color4f ColorMap::getColor(const ColorScheme& cs, const RenderColor rc)
     return ColorMap::inst()->defaultColorScheme().at(rc);
   return {0, 0, 0, 127};
 }
+
+Color4f ColorMap::getContrastColor(const Color4f& col) { return OpenSCAD::getContrastColor(col); }
+
+Color4f ColorMap::getColorHSV(const Color4f& col) { return OpenSCAD::getColorHSV(col); }
 
 void ColorMap::enumerateColorSchemesInPath(colorscheme_set_t& result_set, const fs::path& basePath)
 {

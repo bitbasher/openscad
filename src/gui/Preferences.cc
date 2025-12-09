@@ -54,6 +54,8 @@
 #include <QTextDocument>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QLabel>
+#include <QVBoxLayout>
 #include <boost/algorithm/string.hpp>
 #include "OctoPrintApiKeyDialog.h"
 #include "geometry/GeometryCache.h"
@@ -68,6 +70,7 @@
 #include "glview/RenderSettings.h"
 #include "gui/QSettingsCached.h"
 #include "gui/SettingsWriter.h"
+#include "gui/ScintillaEditor.h"
 #include "gui/OctoPrint.h"
 #include "gui/IgnoreWheelWhenNotFocused.h"
 #include "gui/PrintService.h"
@@ -98,17 +101,26 @@ Preferences::Preferences(QWidget *parent) : QMainWindow(parent)
 {
   setupUi(this);
 
-  std::list<std::string> names = ColorMap::inst()->colorSchemeNames(true);
+  // Populate 3D View color scheme chooser with render schemes only
+  std::list<std::string> renderNames = ColorMap::inst()->colorSchemeNames(true);
   QStringList renderColorSchemes;
-  for (const auto& name : names) renderColorSchemes << name.c_str();
+  for (const auto& name : renderNames) renderColorSchemes << name.c_str();
 
   syntaxHighlight->clear();
   colorSchemeChooser->clear();
   colorSchemeChooser->addItems(renderColorSchemes);
+
+  // Populate Editor color scheme chooser with editor schemes only
+  QStringList editorColorSchemes = ScintillaEditor::enumerateColorSchemeNames();
+  colorSchemeChooserEditor->clear();
+  colorSchemeChooserEditor->addItems(editorColorSchemes);
+
   init();
   AxisConfig->init();
   setupFeaturesPage();
   setup3DPrintPage();
+  setup3DPreview();
+  setupEditorPreview();
   updateGUI();
 }
 
@@ -189,6 +201,7 @@ void Preferences::init()
   // Toolbar
   auto *group = new QActionGroup(this);
   addPrefPage(group, prefsAction3DView, page3DView);
+  addPrefPage(group, prefsActionEditorColorScheme, pageEditorColorScheme);
   addPrefPage(group, prefsActionEditor, pageEditor);
 #ifdef OPENSCAD_UPDATER
   addPrefPage(group, prefsActionUpdate, pageUpdate);
@@ -214,6 +227,13 @@ void Preferences::init()
 
   // 3D View pane
   this->defaultmap["3dview/colorscheme"] = "Cornfield";
+  this->defaultmap["3dview/showAxes"] = true;
+  this->defaultmap["3dview/showScaleMarkers"] = true;
+  this->defaultmap["3dview/showEdges"] = false;
+  this->defaultmap["3dview/projection"] = "Perspective";
+
+  // Editor Color Scheme pane
+  this->defaultmap["editor/colorscheme"] = "For Light Background";
 
   // Advanced pane
   const int absolute_max = (sizeof(void *) == 8) ? 1024 * 1024 : 2048;  // 1TB for 64bit or 2GB for 32bit
@@ -463,9 +483,31 @@ void Preferences::on_colorSchemeChooser_itemSelectionChanged()
   QString scheme = this->colorSchemeChooser->currentItem()->text();
   QSettingsCached settings;
   settings.setValue("3dview/colorscheme", scheme);
+
+  // Populate the color table and metadata
+  populate3DColorTable(scheme);
+
+  // Update the preview
+  update3DPreview(scheme);
+
   emit colorSchemeChanged(scheme);
 }
 
+void Preferences::on_colorSchemeChooserEditor_itemSelectionChanged()
+{
+  QString scheme = this->colorSchemeChooserEditor->currentItem()->text();
+  QSettingsCached settings;
+  settings.setValue("editor/syntaxhighlight", scheme);
+
+  // Populate the color table and metadata
+  populateEditorColorTable(scheme);
+
+  // Update the preview
+  updateEditorPreview(scheme);
+
+  // Emit signal to update the main editor
+  emit syntaxHighlightChanged(scheme);
+}
 void Preferences::on_fontChooser_currentFontChanged(const QFont& font)
 {
   QSettingsCached settings;
@@ -609,6 +651,33 @@ void Preferences::on_checkBoxMouseCentricZoom_toggled(bool val)
   Settings::Settings::mouseCentricZoom.setValue(val);
   writeSettings();
   emit updateMouseCentricZoom(val);
+}
+
+void Preferences::on_checkBoxShowAxes_stateChanged(int state)
+{
+  QSettingsCached settings;
+  // Qt::Unchecked = 0, Qt::PartiallyChecked = 1, Qt::Checked = 2
+  // We save the state as an int: 0 = force off, 1 = use last setting, 2 = force on
+  settings.setValue("3dview/showAxes", state);
+}
+
+void Preferences::on_checkBoxShowScaleMarkers_stateChanged(int state)
+{
+  QSettingsCached settings;
+  settings.setValue("3dview/showScaleMarkers", state);
+}
+
+void Preferences::on_checkBoxShowEdges_stateChanged(int state)
+{
+  QSettingsCached settings;
+  settings.setValue("3dview/showEdges", state);
+}
+
+void Preferences::on_comboBoxProjection_activated(int index)
+{
+  QSettingsCached settings;
+  // Index: 0 = Don't Force, 1 = Perspective, 2 = Orthogonal
+  settings.setValue("3dview/projection", index);
 }
 
 void Preferences::on_spinBoxIndentationWidth_valueChanged(int val)
@@ -1287,8 +1356,37 @@ void Preferences::updateGUI()
 {
   const auto found =
     this->colorSchemeChooser->findItems(getValue("3dview/colorscheme").toString(), Qt::MatchExactly);
-  if (!found.isEmpty())
+  if (!found.isEmpty()) {
     BlockSignals<QListWidget *>(this->colorSchemeChooser)->setCurrentItem(found.first());
+    // Populate the 3D color table with the current scheme
+    populate3DColorTable(found.first()->text());
+    // Update the 3D preview
+    update3DPreview(found.first()->text());
+  }
+
+  // Update Editor color scheme chooser
+  const auto foundEditor = this->colorSchemeChooserEditor->findItems(
+    getValue("editor/syntaxhighlight").toString(), Qt::MatchExactly);
+  if (!foundEditor.isEmpty()) {
+    BlockSignals<QListWidget *>(this->colorSchemeChooserEditor)->setCurrentItem(foundEditor.first());
+    // Populate the editor color table with the current scheme
+    populateEditorColorTable(foundEditor.first()->text());
+    // Update the editor preview
+    updateEditorPreview(foundEditor.first()->text());
+  }
+
+  // Update 3D View Settings controls (tri-state checkboxes)
+  // Default to PartiallyChecked (1) so existing user settings are preserved
+  QSettingsCached settings;
+  BlockSignals<QCheckBox *>(this->checkBoxShowAxes)
+    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showAxes", 1).toInt()));
+  BlockSignals<QCheckBox *>(this->checkBoxShowScaleMarkers)
+    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showScaleMarkers", 1).toInt()));
+  BlockSignals<QCheckBox *>(this->checkBoxShowEdges)
+    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showEdges", 1).toInt()));
+
+  int projectionIndex = settings.value("3dview/projection", 0).toInt();  // Default to Don't Force
+  BlockSignals<QComboBox *>(this->comboBoxProjection)->setCurrentIndex(projectionIndex);
 
   updateGUIFontFamily(fontChooser, "editor/fontfamily");
   updateGUIFontSize(fontSize, "editor/fontsize");
@@ -1494,3 +1592,313 @@ Preferences *GlobalPreferences::inst()
   static auto *instance = new Preferences();
   return instance;
 };
+
+QString Preferences::renderColorToString(int colorKey) const
+{
+  switch (static_cast<RenderColor>(colorKey)) {
+  case RenderColor::BACKGROUND_COLOR:         return "Background";
+  case RenderColor::BACKGROUND_STOP_COLOR:    return "Background Stop";
+  case RenderColor::AXES_COLOR:               return "Axes";
+  case RenderColor::OPENCSG_FACE_FRONT_COLOR: return "OpenCSG Face Front";
+  case RenderColor::OPENCSG_FACE_BACK_COLOR:  return "OpenCSG Face Back";
+  case RenderColor::CGAL_FACE_FRONT_COLOR:    return "CGAL Face Front";
+  case RenderColor::CGAL_FACE_2D_COLOR:       return "CGAL Face 2D";
+  case RenderColor::CGAL_FACE_BACK_COLOR:     return "CGAL Face Back";
+  case RenderColor::CGAL_EDGE_FRONT_COLOR:    return "CGAL Edge Front";
+  case RenderColor::CGAL_EDGE_BACK_COLOR:     return "CGAL Edge Back";
+  case RenderColor::CGAL_EDGE_2D_COLOR:       return "CGAL Edge 2D";
+  case RenderColor::CROSSHAIR_COLOR:          return "Crosshair";
+  default:                                    return "Unknown";
+  }
+}
+
+void Preferences::populate3DColorTable(const QString& schemeName)
+{
+  tableWidget3DColors->setRowCount(0);
+
+  const RenderColorScheme *scheme = ColorMap::inst()->findRenderColorScheme(schemeName.toStdString());
+  if (!scheme) return;
+
+  // Note: colorScheme() is non-const, so we need to cast away const
+  // This is safe because we're only reading from it
+  ColorScheme& colors = const_cast<RenderColorScheme *>(scheme)->colorScheme();
+  tableWidget3DColors->setRowCount(colors.size());
+
+  // Hide the vertical header (row numbers/index column)
+  tableWidget3DColors->verticalHeader()->setVisible(false);
+
+  // Set column resize modes
+  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+  tableWidget3DColors->setMinimumWidth(300);  // Ensure table has reasonable minimum
+  tableWidget3DColors->setMaximumWidth(400);  // Limit table width
+
+  int row = 0;
+  for (const auto& colorPair : colors) {
+    // Name column
+    QTableWidgetItem *nameItem =
+      new QTableWidgetItem(renderColorToString(static_cast<int>(colorPair.first)));
+    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+    tableWidget3DColors->setItem(row, 0, nameItem);
+
+    // Color column - visual patch only, no text
+    const Color4f& color = colorPair.second;
+    QTableWidgetItem *colorItem = new QTableWidgetItem("");
+    colorItem->setFlags(colorItem->flags() & ~Qt::ItemIsEditable);
+
+    // Set background color to show the actual color
+    QColor bgColor(static_cast<int>(color.r() * 255), static_cast<int>(color.g() * 255),
+                   static_cast<int>(color.b() * 255), static_cast<int>(color.a() * 255));
+    colorItem->setBackground(QBrush(bgColor));
+
+    tableWidget3DColors->setItem(row, 1, colorItem);
+
+    // RGB column - show hex values with padding
+    int r = static_cast<int>(color.r() * 255);
+    int g = static_cast<int>(color.g() * 255);
+    int b = static_cast<int>(color.b() * 255);
+    QString rgbText = QString("%1  %2  %3")
+                        .arg(r, 3, 16, QChar('0'))
+                        .arg(g, 3, 16, QChar('0'))
+                        .arg(b, 3, 16, QChar('0'));
+    QTableWidgetItem *rgbItem = new QTableWidgetItem(rgbText);
+    rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
+    tableWidget3DColors->setItem(row, 2, rgbItem);
+
+    row++;
+  }
+
+  // Make color column square (width = row height)
+  if (tableWidget3DColors->rowCount() > 0) {
+    int rowHeight = tableWidget3DColors->rowHeight(0);
+    tableWidget3DColors->setColumnWidth(1, rowHeight);
+  }
+
+  // Update header with scheme name (path is private in RenderColorScheme)
+  label3DSchemePath->setText(schemeName);
+
+  // Update metadata if available
+  const boost::property_tree::ptree& pt = scheme->propertyTree();
+  QString metadata;
+
+  try {
+    auto author = pt.get_optional<std::string>("author");
+    if (author) metadata += QString("Author: %1\n").arg(QString::fromStdString(*author));
+
+    auto description = pt.get_optional<std::string>("description");
+    if (description) metadata += QString("Description: %1\n").arg(QString::fromStdString(*description));
+
+    auto license = pt.get_optional<std::string>("license");
+    if (license) metadata += QString("License: %1\n").arg(QString::fromStdString(*license));
+
+    auto version = pt.get_optional<std::string>("version");
+    if (version) metadata += QString("Version: %1\n").arg(QString::fromStdString(*version));
+  } catch (...) {
+    // Ignore metadata errors
+  }
+
+  if (!metadata.isEmpty()) {
+    textEdit3DMetadata->setPlainText(metadata);
+    groupBox3DMetadata->setVisible(true);
+  } else {
+    groupBox3DMetadata->setVisible(false);
+  }
+}
+
+void Preferences::populateEditorColorTable(const QString& schemeName)
+{
+  tableWidgetEditorColors->setRowCount(0);
+
+  const EditorColorScheme *scheme = ScintillaEditor::findEditorColorScheme(schemeName);
+  if (!scheme) return;
+
+  const boost::property_tree::ptree& pt = scheme->propertyTree();
+
+  // Count color entries in the JSON, flattening nested structures
+  std::vector<std::pair<std::string, std::string>> colorEntries;
+
+  for (const auto& item : pt) {
+    if (item.first == "name" || item.first == "index" || item.first == "keywords") continue;
+
+    // Check if it's a direct value (like "paper", "text")
+    auto directValue = item.second.get_value_optional<std::string>();
+    if (directValue && !directValue->empty()) {
+      colorEntries.push_back({item.first, *directValue});
+    } else {
+      // It's a nested object (like "caret" or "colors"), flatten it
+      for (const auto& nested : item.second) {
+        auto nestedValue = nested.second.get_value_optional<std::string>();
+        if (nestedValue && !nestedValue->empty()) {
+          std::string fullName = item.first + "." + nested.first;
+          colorEntries.push_back({fullName, *nestedValue});
+        }
+      }
+    }
+  }
+
+  tableWidgetEditorColors->setRowCount(colorEntries.size());
+
+  // Hide the vertical header (row numbers/index column)
+  tableWidgetEditorColors->verticalHeader()->setVisible(false);
+
+  // Set column resize modes
+  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+  tableWidgetEditorColors->setMinimumWidth(300);  // Ensure table has reasonable minimum
+  tableWidgetEditorColors->setMaximumWidth(400);  // Limit table width
+
+  int row = 0;
+  for (const auto& entry : colorEntries) {
+    // Name column
+    QTableWidgetItem *nameItem = new QTableWidgetItem(QString::fromStdString(entry.first));
+    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+    tableWidgetEditorColors->setItem(row, 0, nameItem);
+
+    // Color column - visual patch only, no text
+    QTableWidgetItem *colorItem = new QTableWidgetItem("");
+    colorItem->setFlags(colorItem->flags() & ~Qt::ItemIsEditable);
+
+    // Try to parse as color (format: #RRGGBB or named colors)
+    QString colorStr = QString::fromStdString(entry.second);
+    QColor color(colorStr);
+    if (color.isValid()) {
+      colorItem->setBackground(QBrush(color));
+    }
+
+    tableWidgetEditorColors->setItem(row, 1, colorItem);
+
+    // RGB column - show hex values with padding
+    if (color.isValid()) {
+      QString rgbText = QString("%1  %2  %3")
+                          .arg(color.red(), 3, 16, QChar('0'))
+                          .arg(color.green(), 3, 16, QChar('0'))
+                          .arg(color.blue(), 3, 16, QChar('0'));
+      QTableWidgetItem *rgbItem = new QTableWidgetItem(rgbText);
+      rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
+      tableWidgetEditorColors->setItem(row, 2, rgbItem);
+    } else {
+      // Non-color value (like width: 2)
+      QTableWidgetItem *rgbItem = new QTableWidgetItem(QString::fromStdString(entry.second));
+      rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
+      tableWidgetEditorColors->setItem(row, 2, rgbItem);
+    }
+
+    row++;
+  }
+
+  // Make color column square (width = row height)
+  if (tableWidgetEditorColors->rowCount() > 0) {
+    int rowHeight = tableWidgetEditorColors->rowHeight(0);
+    tableWidgetEditorColors->setColumnWidth(1, rowHeight);
+  }
+
+  // Update header with scheme path
+  labelEditorSchemePath->setText(QString::fromStdString(scheme->path().generic_string()));
+
+  // Update metadata if available
+  QString metadata;
+  try {
+    auto author = pt.get_optional<std::string>("author");
+    if (author) metadata += QString("Author: %1\n").arg(QString::fromStdString(*author));
+
+    auto description = pt.get_optional<std::string>("description");
+    if (description) metadata += QString("Description: %1\n").arg(QString::fromStdString(*description));
+
+    auto license = pt.get_optional<std::string>("license");
+    if (license) metadata += QString("License: %1\n").arg(QString::fromStdString(*license));
+
+    auto version = pt.get_optional<std::string>("version");
+    if (version) metadata += QString("Version: %1\n").arg(QString::fromStdString(*version));
+  } catch (...) {
+    // Ignore metadata errors
+  }
+
+  if (!metadata.isEmpty()) {
+    textEditEditorMetadata->setPlainText(metadata);
+    groupBoxEditorMetadata->setVisible(true);
+  } else {
+    groupBoxEditorMetadata->setVisible(false);
+  }
+}
+
+void Preferences::setup3DPreview()
+{
+  // For now, create a simple placeholder label in the 3D preview widget
+  // In the future, this could be a mini GLView showing a 3D object with the color scheme
+  QVBoxLayout *layout = new QVBoxLayout(widget3DPreview);
+  layout->setContentsMargins(0, 0, 0, 0);
+
+  label3DPreviewPlaceholder = new QLabel(widget3DPreview);
+  label3DPreviewPlaceholder->setAlignment(Qt::AlignCenter);
+  label3DPreviewPlaceholder->setWordWrap(true);
+  label3DPreviewPlaceholder->setStyleSheet(
+    "QLabel { padding: 20px; background-color: #f0f0f0; color: #666; }");
+  label3DPreviewPlaceholder->setText("3D Preview\n(Coming Soon)");
+
+  layout->addWidget(label3DPreviewPlaceholder);
+}
+
+void Preferences::setupEditorPreview()
+{
+  // Create a small ScintillaEditor widget for the editor preview
+  QVBoxLayout *layout = new QVBoxLayout(widgetEditorPreview);
+  layout->setContentsMargins(0, 0, 0, 0);
+
+  editorPreview = new ScintillaEditor(widgetEditorPreview);
+  editorPreview->setMinimumHeight(150);
+
+  // Set some sample OpenSCAD code
+  QString sampleCode =
+    "// OpenSCAD Sample Code\n"
+    "module sample() {\n"
+    "  // Create a cube\n"
+    "  cube([10, 10, 10]);\n"
+    "  \n"
+    "  // Add a cylinder\n"
+    "  translate([5, 5, 10])\n"
+    "    cylinder(h=5, r=3, $fn=32);\n"
+    "}\n"
+    "\n"
+    "/* Multi-line comment\n"
+    "   showing different colors */\n"
+    "difference() {\n"
+    "  sample();\n"
+    "  sphere(r=8, $fn=64);\n"
+    "}\n";
+
+  editorPreview->qsci->setText(sampleCode);
+  editorPreview->qsci->setReadOnly(true);
+
+  layout->addWidget(editorPreview);
+}
+
+void Preferences::update3DPreview(const QString& schemeName)
+{
+  // Placeholder for future 3D preview implementation
+  // This would render a simple 3D scene using the selected color scheme
+  if (label3DPreviewPlaceholder) {
+    label3DPreviewPlaceholder->setText(
+      QString("3D Preview\n(Coming Soon)\n\nScheme: %1").arg(schemeName));
+  }
+}
+
+void Preferences::updateEditorPreview(const QString& schemeName)
+{
+  // Apply the selected color scheme to the preview editor
+  if (!editorPreview) return;
+
+  const EditorColorScheme *scheme = ScintillaEditor::findEditorColorScheme(schemeName);
+  if (!scheme) return;
+
+  // Save and restore the original color scheme to avoid persisting the preview
+  QSettingsCached settings;
+  QString oldScheme = settings.value("editor/colorscheme").toString();
+
+  // Apply the color scheme to the preview editor
+  editorPreview->setHighlightScheme(schemeName);
+
+  // Restore the original setting (don't save the preview change)
+  settings.setValue("editor/colorscheme", oldScheme);
+}

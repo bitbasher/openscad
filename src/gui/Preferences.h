@@ -22,6 +22,7 @@
 #include "ui_Preferences.h"
 #include "core/Settings.h"
 #include "gui/InitConfigurator.h"
+#include "gui/ScintillaEditor.h"
 
 class GlobalPreferences;
 class Preferences : public QMainWindow, public Ui::Preferences, public InitConfigurator
@@ -51,6 +52,7 @@ public slots:
   void featuresCheckBoxToggled(bool);
   void on_stackedWidget_currentChanged(int);
   void on_colorSchemeChooser_itemSelectionChanged();
+  void on_colorSchemeChooserEditor_itemSelectionChanged();
   void on_fontChooser_currentFontChanged(const QFont&);
   void on_fontSize_currentIndexChanged(int);
   void on_syntaxHighlight_currentTextChanged(const QString&);
@@ -83,6 +85,10 @@ public slots:
   void on_enableHidapiTraceCheckBox_toggled(bool);
   void on_checkBoxShowWarningsIn3dView_toggled(bool);
   void on_checkBoxMouseCentricZoom_toggled(bool);
+  void on_checkBoxShowAxes_stateChanged(int);
+  void on_checkBoxShowScaleMarkers_stateChanged(int);
+  void on_checkBoxShowEdges_stateChanged(int);
+  void on_comboBoxProjection_activated(int);
   void on_timeThresholdOnRenderCompleteSoundEdit_textChanged(const QString&);
   void on_enableClearConsoleCheckBox_toggled(bool);
   void on_consoleMaxLinesEdit_textChanged(const QString&);
@@ -205,10 +211,22 @@ private:
   /** Set value from combobox to settings */
   void applyComboBox(QComboBox *comboBox, int val, Settings::SettingsEntryEnum<std::string>& entry);
 
+  // Color scheme helper functions
+  void populate3DColorTable(const QString& schemeName);
+  void populateEditorColorTable(const QString& schemeName);
+  QString renderColorToString(int colorKey) const;
+  void setup3DPreview();
+  void setupEditorPreview();
+  void update3DPreview(const QString& schemeName);
+  void updateEditorPreview(const QString& schemeName);
+
   QSettings::SettingsMap defaultmap;
   QHash<const QAction *, QWidget *> prefPages;
-};
 
+  // Preview widgets
+  QLabel *label3DPreviewPlaceholder;
+  ScintillaEditor *editorPreview;
+};
 class GlobalPreferences
 {
 public:

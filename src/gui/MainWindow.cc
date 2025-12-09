@@ -1007,25 +1007,50 @@ void MainWindow::loadViewSettings()
 {
   const QSettingsCached settings;
 
-  if (settings.value("view/showEdges").toBool()) {
+  // Check preferences for forced states (tri-state checkboxes)
+  // State: 0 = force off, 1 = use last user setting (PartiallyChecked), 2 = force on
+  int axesPref = settings.value("3dview/showAxes", 1).toInt();  // Default to PartiallyChecked
+  int scaleMarkersPref = settings.value("3dview/showScaleMarkers", 1).toInt();
+  int edgesPref = settings.value("3dview/showEdges", 1).toInt();
+
+  // Show Edges: respect preference override or use last user setting
+  if (edgesPref == 2 || (edgesPref == 1 && settings.value("view/showEdges").toBool())) {
     viewActionShowEdges->setChecked(true);
     viewModeShowEdges();
+  } else if (edgesPref == 0) {
+    viewActionShowEdges->setChecked(false);
   }
-  if (settings.value("view/showAxes", true).toBool()) {
+
+  // Show Axes: respect preference override or use last user setting
+  if (axesPref == 2 || (axesPref == 1 && settings.value("view/showAxes", true).toBool())) {
     viewActionShowAxes->setChecked(true);
     viewModeShowAxes();
+  } else if (axesPref == 0) {
+    viewActionShowAxes->setChecked(false);
   }
+
   if (settings.value("view/showCrosshairs").toBool()) {
     viewActionShowCrosshairs->setChecked(true);
     viewModeShowCrosshairs();
   }
-  if (settings.value("view/showScaleProportional", true).toBool()) {
+
+  // Show Scale Markers: respect preference override or use last user setting
+  if (scaleMarkersPref == 2 ||
+      (scaleMarkersPref == 1 && settings.value("view/showScaleProportional", true).toBool())) {
     viewActionShowScaleProportional->setChecked(true);
     viewModeShowScaleProportional();
+  } else if (scaleMarkersPref == 0) {
+    viewActionShowScaleProportional->setChecked(false);
   }
-  if (settings.value("view/orthogonalProjection").toBool()) {
+
+  // Projection: respect preference override or use last user setting
+  // Index: 0 = Don't Force, 1 = Force Perspective, 2 = Force Orthogonal
+  int projectionPref = settings.value("3dview/projection", 0).toInt();
+  if (projectionPref == 2 ||
+      (projectionPref == 0 && settings.value("view/orthogonalProjection").toBool())) {
     viewOrthogonal();
-  } else {
+  } else if (projectionPref == 1 ||
+             (projectionPref == 0 && !settings.value("view/orthogonalProjection").toBool())) {
     viewPerspective();
   }
 

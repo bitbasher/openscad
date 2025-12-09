@@ -101,7 +101,7 @@ QsciScintilla::WhitespaceVisibility SettingsConverter::toShowWhitespaces(const s
   }
 }
 
-EditorColorScheme::EditorColorScheme(const fs::path& path) : path(path)
+EditorColorScheme::EditorColorScheme(const fs::path& path) : schemeFilePath(path)
 {
   try {
     boost::property_tree::read_json(path.generic_string(), pt);
@@ -121,6 +121,8 @@ const QString& EditorColorScheme::name() const { return _name; }
 int EditorColorScheme::index() const { return _index; }
 
 const boost::property_tree::ptree& EditorColorScheme::propertyTree() const { return pt; }
+
+const fs::path& EditorColorScheme::path() const { return schemeFilePath; }
 
 ScintillaEditor::ScintillaEditor(QWidget *parent) : EditorInterface(parent)
 {
@@ -749,6 +751,79 @@ QStringList ScintillaEditor::colorSchemes()
   colorSchemes << "Off";
 
   return colorSchemes;
+}
+
+const EditorColorScheme *ScintillaEditor::findEditorColorScheme(const QString& name)
+{
+  // Use a static cache to keep schemes alive
+  static ScintillaEditor::colorscheme_set_t schemes;
+  static bool initialized = false;
+
+  if (!initialized) {
+    // Enumerate schemes from both resource and user paths
+    auto enumerator = [](colorscheme_set_t& result_set, const fs::path& path) {
+      const auto color_schemes = path / "color-schemes" / "editor";
+      if (fs::exists(color_schemes) && fs::is_directory(color_schemes)) {
+        for (const auto& dirEntry :
+             boost::make_iterator_range(fs::directory_iterator{color_schemes}, {})) {
+          if (!fs::is_regular_file(dirEntry.status())) continue;
+          const auto& filePath = dirEntry.path();
+          if (!(filePath.extension() == ".json")) continue;
+          auto colorScheme = std::make_shared<EditorColorScheme>(filePath);
+          if (colorScheme->valid()) {
+            result_set.emplace(colorScheme->index(), colorScheme);
+          }
+        }
+      }
+    };
+
+    enumerator(schemes, PlatformUtils::resourceBasePath());
+    enumerator(schemes, PlatformUtils::userConfigPath());
+    initialized = true;
+  }
+
+  for (const auto& schemeEntry : schemes) {
+    if (schemeEntry.second->name() == name) {
+      return schemeEntry.second.get();
+    }
+  }
+  return nullptr;
+}
+
+QStringList ScintillaEditor::enumerateColorSchemeNames()
+{
+  // Use a static cache to keep schemes alive
+  static colorscheme_set_t schemes;
+  static bool initialized = false;
+
+  if (!initialized) {
+    // Enumerate schemes from both resource and user paths
+    auto enumerator = [](colorscheme_set_t& result_set, const fs::path& path) {
+      const auto color_schemes = path / "color-schemes" / "editor";
+      if (fs::exists(color_schemes) && fs::is_directory(color_schemes)) {
+        for (const auto& dirEntry :
+             boost::make_iterator_range(fs::directory_iterator{color_schemes}, {})) {
+          if (!fs::is_regular_file(dirEntry.status())) continue;
+          const auto& filePath = dirEntry.path();
+          if (!(filePath.extension() == ".json")) continue;
+          auto colorScheme = std::make_shared<EditorColorScheme>(filePath);
+          if (colorScheme->valid()) {
+            result_set.emplace(colorScheme->index(), colorScheme);
+          }
+        }
+      }
+    };
+
+    enumerator(schemes, PlatformUtils::resourceBasePath());
+    enumerator(schemes, PlatformUtils::userConfigPath());
+    initialized = true;
+  }
+
+  QStringList names;
+  for (const auto& schemeEntry : schemes) {
+    names << schemeEntry.second->name();
+  }
+  return names;
 }
 
 bool ScintillaEditor::canUndo() { return qsci->isUndoAvailable(); }

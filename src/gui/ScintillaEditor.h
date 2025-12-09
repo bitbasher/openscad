@@ -30,7 +30,7 @@ class ScadLexer2;
 class EditorColorScheme
 {
 private:
-  const fs::path path;
+  const fs::path schemeFilePath;
 
   boost::property_tree::ptree pt;
   QString _name;
@@ -44,6 +44,7 @@ public:
   int index() const;
   bool valid() const;
   const boost::property_tree::ptree& propertyTree() const;
+  const fs::path& path() const;
 };
 
 class ScintillaEditor : public EditorInterface
@@ -57,7 +58,6 @@ public:
   QsciScintilla *qsci;
   QString toPlainText() override;
   void initMargin();
-  void initLexer();
 
   QString selectedText() override;
   int updateFindIndicators(const QString& findText, bool visibility = true) override;
@@ -80,6 +80,12 @@ public:
 
   void setFocus() override;
   void setupAutoComplete(const bool forceOff = false);
+
+  // Static helper to find an editor color scheme by name
+  static const EditorColorScheme *findEditorColorScheme(const QString& name);
+
+  // Static helper to get list of all editor color scheme names
+  static QStringList enumerateColorSchemeNames();
 
 private:
   void getRange(int *lineFrom, int *lineTo);

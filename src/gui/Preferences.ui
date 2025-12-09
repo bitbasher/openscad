@@ -29,6 +29,7 @@
       <property name="currentIndex">
        <number>7</number>
       </property>
+      <!-- revised 3D View page bitbasher -->
       <widget class="QWidget" name="page3DView">
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <property name="leftMargin">
@@ -44,71 +45,521 @@
          <number>0</number>
         </property>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,3">
-          <item>
-           <layout class="QVBoxLayout" name="verticalLayout_2">
-            <item>
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>Color scheme:</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QListWidget" name="colorSchemeChooser">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="alternatingRowColors">
-               <bool>false</bool>
-              </property>
-              <property name="currentRow">
-               <number>-1</number>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="checkBoxShowWarningsIn3dView">
-          <property name="text">
-           <string>Show Warnings and Errors in 3D View</string>
+         <widget class="QGroupBox" name="groupBox3DRenderingColorSchemes">
+          <property name="title">
+           <string>3D Rendering Color Schemes</string>
           </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="checkBoxMouseCentricZoom">
-          <property name="text">
-           <string>mouse centric zoom</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_3DColorSchemes">
+           <!-- 3D View Settings GroupBox -->
+           <item>
+            <!-- bitbasher config box to three rows -->
+            <widget class="QGroupBox" name="groupBox3DViewSettings">
+             <property name="title">
+              <string>3D View Settings</string>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_3DViewSettings">
+              <!-- Row 1: UI Controls (Warnings and Mouse Zoom) -->
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_3DViewUIControls">
+                <item>
+                 <widget class="QCheckBox" name="checkBoxShowWarningsIn3dView">
+                  <property name="text">
+                   <string>Show Warnings And Errors In 3D View</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBoxMouseCentricZoom">
+                  <property name="text">
+                   <string>Mouse Centric Zoom</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_3DViewUIControls">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+
+              <!-- Row 2: Projection Selector -->
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_3DViewProjection">
+                <item>
+                 <widget class="QLabel" name="labelProjection">
+                  <property name="text">
+                   <string>Projection:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QComboBox" name="comboBoxProjection">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="toolTip">
+                   <string>Controls projection setting at startup:
+• Don't Force: Use last user setting
+• Perspective: Force perspective projection
+• Orthogonal: Force orthogonal projection</string>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Don't Force</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Perspective</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Orthogonal</string>
+                   </property>
+                  </item>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_projection">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+
+              <!-- Row 3: Axes and Markers Controls -->
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_3DViewAxesControls">
+                <item>
+                 <widget class="QCheckBox" name="checkBoxShowAxes">
+                  <property name="text">
+                   <string>Show Axes</string>
+                  </property>
+                  <property name="tristate">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolTip">
+                   <string>Controls the Show Axes icon state at startup:
+• Checked: Force icon ON
+• Unchecked: Force icon OFF
+• Partial (gray): Use last user setting</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBoxShowScaleMarkers">
+                  <property name="text">
+                   <string>Show Scale Markers</string>
+                  </property>
+                  <property name="tristate">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolTip">
+                   <string>Controls the Show Scale Markers icon state at startup:
+• Checked: Force icon ON
+• Unchecked: Force icon OFF
+• Partial (gray): Use last user setting</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="checkBoxShowEdges">
+                  <property name="text">
+                   <string>Show Edges</string>
+                  </property>
+                  <property name="tristate">
+                   <bool>true</bool>
+                  </property>
+                  <property name="toolTip">
+                   <string>Controls the Show Edges icon state at startup:
+• Checked: Force icon ON
+• Unchecked: Force icon OFF
+• Partial (gray): Use last user setting</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_3DViewAxesControls">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </widget>
+           <!-- bitbasher config box to three rows -->
+           </item>
+
+           <!-- Color Scheme Selection and Preview -->
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_3DSchemeMain">
+             <!-- Scheme List -->
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_3DSchemeList">
+               <item>
+                <widget class="QLabel" name="label3DColorScheme">
+                 <property name="text">
+                  <string>Color Scheme:</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="colorSchemeChooser">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="maximumWidth">
+                  <number>250</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+
+             <!-- Right side: Header, Metadata, Table, Preview -->
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_3DSchemeRight">
+               <!-- Header with color indicator and path -->
+               <item>
+                <widget class="QFrame" name="frame3DSchemeHeader">
+                 <property name="frameShape">
+                  <enum>QFrame::StyledPanel</enum>
+                 </property>
+                 <property name="frameShadow">
+                  <enum>QFrame::Raised</enum>
+                 </property>
+                 <property name="styleSheet">
+                  <string>QFrame#frame3DSchemeHeader { background-color: white; border-bottom: 10px solid #3498db; padding: 8px; }</string>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_3DSchemeHeader">
+                  <item>
+                   <widget class="QLabel" name="label3DSchemePath">
+                    <property name="text">
+                     <string>No scheme selected</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="styleSheet">
+                     <string>QLabel { font-weight: bold; }</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+
+               <!-- Metadata (hidden if empty) -->
+               <item>
+                <widget class="QGroupBox" name="groupBox3DMetadata">
+                 <property name="title">
+                  <string>Metadata</string>
+                 </property>
+                 <property name="visible">
+                  <bool>false</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_3DMetadata">
+                  <item>
+                   <widget class="QTextEdit" name="textEdit3DMetadata">
+                    <property name="maximumHeight">
+                     <number>100</number>
+                    </property>
+                    <property name="readOnly">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+
+               <!-- Table and Preview side by side -->
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_3DTablePreview">
+                 <item>
+                  <widget class="QTableWidget" name="tableWidget3DColors">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                     <horstretch>1</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumWidth">
+                    <number>300</number>
+                   </property>
+                   <property name="columnCount">
+                    <number>3</number>
+                   </property>
+                   <column>
+                    <property name="text">
+                     <string>Name</string>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Color</string>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>RGB</string>
+                    </property>
+                   </column>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QWidget" name="widget3DPreview" native="true">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>250</width>
+                     <height>200</height>
+                    </size>
+                   </property>
+                   <property name="maximumWidth">
+                    <number>300</number>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+
+               <!-- Button Box -->
+               <item>
+                <widget class="QDialogButtonBox" name="buttonBox3DScheme">
+                 <property name="standardButtons">
+                  <set>QDialogButtonBox::NoButton</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
          </widget>
         </item>
        </layout>
       </widget>
+      <!-- end 3D View page bitbasher -->
+      <!-- new page Editor Color Schemes bitbasher -->
+      <widget class="QWidget" name="pageEditorColorScheme">
+       <layout class="QVBoxLayout" name="verticalLayout_EditorColorScheme">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QGroupBox" name="groupBoxEditorColorSchemes">
+          <property name="title">
+           <string>Editor Color Schemes</string>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_EditorColorSchemesMain">
+           <!-- Color Scheme Selection and Preview -->
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_EditorSchemeMain">
+             <!-- Scheme List -->
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_EditorSchemeList">
+               <item>
+                <widget class="QLabel" name="labelEditorColorScheme">
+                 <property name="text">
+                  <string>Color Scheme:</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QListWidget" name="colorSchemeChooserEditor">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="maximumWidth">
+                  <number>250</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+
+             <!-- Right side: Header, Metadata, Table, Preview -->
+             <item>
+              <layout class="QVBoxLayout" name="verticalLayout_EditorSchemeRight">
+               <!-- Header with color indicator and path -->
+               <item>
+                <widget class="QFrame" name="frameEditorSchemeHeader">
+                 <property name="frameShape">
+                  <enum>QFrame::StyledPanel</enum>
+                 </property>
+                 <property name="frameShadow">
+                  <enum>QFrame::Raised</enum>
+                 </property>
+                 <property name="styleSheet">
+                  <string>QFrame#frameEditorSchemeHeader { background-color: white; border-bottom: 10px solid #2ecc71; padding: 8px; }</string>
+                 </property>
+                 <layout class="QHBoxLayout" name="horizontalLayout_EditorSchemeHeader">
+                  <item>
+                   <widget class="QLabel" name="labelEditorSchemePath">
+                    <property name="text">
+                     <string>No scheme selected</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                    <property name="styleSheet">
+                     <string>QLabel { font-weight: bold; }</string>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+
+               <!-- Metadata (hidden if empty) -->
+               <item>
+                <widget class="QGroupBox" name="groupBoxEditorMetadata">
+                 <property name="title">
+                  <string>Metadata</string>
+                 </property>
+                 <property name="visible">
+                  <bool>false</bool>
+                 </property>
+                 <layout class="QVBoxLayout" name="verticalLayout_EditorMetadata">
+                  <item>
+                   <widget class="QTextEdit" name="textEditEditorMetadata">
+                    <property name="maximumHeight">
+                     <number>100</number>
+                    </property>
+                    <property name="readOnly">
+                     <bool>true</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+
+               <!-- Table and Preview side by side -->
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_EditorTablePreview">
+                 <item>
+                  <widget class="QTableWidget" name="tableWidgetEditorColors">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                     <horstretch>1</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumWidth">
+                    <number>300</number>
+                   </property>
+                   <property name="columnCount">
+                    <number>3</number>
+                   </property>
+                   <column>
+                    <property name="text">
+                     <string>Name</string>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>Color</string>
+                    </property>
+                   </column>
+                   <column>
+                    <property name="text">
+                     <string>RGB</string>
+                    </property>
+                   </column>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QWidget" name="widgetEditorPreview" native="true">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="minimumSize">
+                    <size>
+                     <width>350</width>
+                     <height>200</height>
+                    </size>
+                   </property>
+                   <property name="maximumWidth">
+                    <number>390</number>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+
+               <!-- Button Box -->
+               <item>
+                <widget class="QDialogButtonBox" name="buttonBoxEditorScheme">
+                 <property name="standardButtons">
+                  <set>QDialogButtonBox::NoButton</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <!-- end new page Editor Color Schemes bitbasher -->
       <widget class="QWidget" name="pageEditor">
        <layout class="QVBoxLayout" name="verticalLayout">
         <property name="spacing">
@@ -2898,6 +3349,7 @@
     <bool>false</bool>
    </attribute>
    <addaction name="prefsAction3DView"/>
+   <addaction name="prefsActionEditorColorScheme"/>
    <addaction name="prefsActionEditor"/>
    <addaction name="prefsActionUpdate"/>
    <addaction name="prefsActionFeatures"/>
@@ -2918,6 +3370,18 @@
    </property>
    <property name="text">
     <string>3D View</string>
+   </property>
+  </action>
+    <action name="prefsActionEditorColorScheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../../resources/common.qrc">
+     <normaloff>:/icons/prefs3DView.png</normaloff>:/icons/prefs3DView.png</iconset>
+   </property>
+   <property name="text">
+    <string>Editor Colors</string>
    </property>
   </action>
   <action name="prefsActionAdvanced">
