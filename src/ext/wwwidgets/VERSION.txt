@@ -1,0 +1,12 @@
+wwWidgets Library Version Information
+====================================
+
+Qt Version: 6
+Library Variant: Qt6
+Build Date: TBD
+Source Commit: TBD
+Source Repository: https://github.com/bitbasher/wwWidgets-1.0-qt5.git
+Branch: port-to-msys-mingw64
+
+Update this file when copying new deploy-openscad artifacts from the wwWidgets project.
+Ensure the Qt version matches the OpenSCAD build configuration.

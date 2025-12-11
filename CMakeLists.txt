@@ -42,7 +42,7 @@ option(HEADLESS "Build without GUI frontend" OFF)
 if(APPLE)
   option(USE_QT6 "Build the GUI with Qt6" ON)
 else()
-option(USE_QT6 "Build the GUI with Qt6" OFF)
+option(USE_QT6 "Build the GUI with Qt6" ON)
 endif()
 option(ENABLE_EGL "Enable EGL support if available" ON)
 option(ENABLE_GLX "Enable GLX support if available" ON)
@@ -422,6 +422,9 @@ endif()
 find_package(PkgConfig)
 
 add_subdirectory(submodules)
+
+# Import pre-built wwWidgets library (Qt color combo box widgets)
+add_subdirectory(src/ext/wwwidgets)
 
 # The submodules will set up mimalloc if needed, and we need to defer any
 # target_link_libraries() calls until after that.
@@ -1610,6 +1613,7 @@ if (USE_QT6)
     target_link_libraries(OpenSCADLibInternal PUBLIC
       Qt6::Core Qt6::Core5Compat Qt6::Widgets Qt6::Multimedia Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Concurrent Qt6::Network Qt6::Svg
       ${QT6QSCINTILLA_LIBRARY} ${Qt6DBus_LIBRARIES} ${Qt6Gamepad_LIBRARIES}
+      wwwidgets
     )
   endif()
   if(ENABLE_GUI_TESTS)
@@ -1623,6 +1627,7 @@ else()
     target_link_libraries(OpenSCADLibInternal PUBLIC
       Qt5::Core Qt5::Widgets Qt5::Multimedia Qt5::OpenGL Qt5::Concurrent Qt5::Network Qt5::Svg
       ${QT5QSCINTILLA_LIBRARY} ${Qt5DBus_LIBRARIES} ${Qt5Gamepad_LIBRARIES}
+      wwwidgets
     )
   endif()
   if(ENABLE_GUI_TESTS)

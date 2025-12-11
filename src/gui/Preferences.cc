@@ -48,6 +48,7 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 #include <QRegularExpression>
+#include "qwwcolorcombobox.h"
 #include <QRegularExpressionValidator>
 #include <QStatusBar>
 #include <QSettings>
@@ -1631,8 +1632,8 @@ void Preferences::populate3DColorTable(const QString& schemeName)
   tableWidget3DColors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   tableWidget3DColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
   tableWidget3DColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-  tableWidget3DColors->setMinimumWidth(300);  // Ensure table has reasonable minimum
-  tableWidget3DColors->setMaximumWidth(400);  // Limit table width
+  tableWidget3DColors->setMinimumWidth(400);  // Ensure table has reasonable minimum
+  tableWidget3DColors->setMaximumWidth(600);  // Limit table width for combobox
 
   int row = 0;
   for (const auto& colorPair : colors) {
@@ -1642,37 +1643,47 @@ void Preferences::populate3DColorTable(const QString& schemeName)
     nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
     tableWidget3DColors->setItem(row, 0, nameItem);
 
-    // Color column - visual patch only, no text
     const Color4f& color = colorPair.second;
-    QTableWidgetItem *colorItem = new QTableWidgetItem("");
-    colorItem->setFlags(colorItem->flags() & ~Qt::ItemIsEditable);
-
-    // Set background color to show the actual color
-    QColor bgColor(static_cast<int>(color.r() * 255), static_cast<int>(color.g() * 255),
-                   static_cast<int>(color.b() * 255), static_cast<int>(color.a() * 255));
-    colorItem->setBackground(QBrush(bgColor));
-
-    tableWidget3DColors->setItem(row, 1, colorItem);
-
-    // RGB column - show hex values with padding
     int r = static_cast<int>(color.r() * 255);
     int g = static_cast<int>(color.g() * 255);
     int b = static_cast<int>(color.b() * 255);
+    QColor qcolor(r, g, b);
+
+    // RGB column - show hex values with thick colored border
     QString rgbText = QString("%1  %2  %3")
                         .arg(r, 3, 16, QChar('0'))
                         .arg(g, 3, 16, QChar('0'))
                         .arg(b, 3, 16, QChar('0'));
     QTableWidgetItem *rgbItem = new QTableWidgetItem(rgbText);
     rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
-    tableWidget3DColors->setItem(row, 2, rgbItem);
+
+    // Create thick colored border using stylesheet
+    // Can't set border on QTableWidgetItem, so we'll need to use a label widget instead
+    QLabel *rgbLabel = new QLabel(rgbText);
+    rgbLabel->setAlignment(Qt::AlignCenter);
+    rgbLabel->setStyleSheet(
+      QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;").arg(r).arg(g).arg(b));
+    tableWidget3DColors->setCellWidget(row, 1, rgbLabel);
+
+    // Color picker column - QwwColorComboBox
+    QwwColorComboBox *colorCombo = new QwwColorComboBox();
+    colorCombo->setStandardColors();
+    colorCombo->setCurrentColor(qcolor);
+    colorCombo->setColorDialogEnabled(true);
+
+    // TODO: Connect signal to update color scheme when changed
+    // connect(colorCombo, &QwwColorComboBox::activated, [this, row](const QColor &newColor) {
+    //   // Update color scheme and refresh preview
+    // });
+
+    tableWidget3DColors->setCellWidget(row, 2, colorCombo);
 
     row++;
   }
 
-  // Make color column square (width = row height)
+  // Set RGB column width to be reasonable for hex values with border
   if (tableWidget3DColors->rowCount() > 0) {
-    int rowHeight = tableWidget3DColors->rowHeight(0);
-    tableWidget3DColors->setColumnWidth(1, rowHeight);
+    tableWidget3DColors->setColumnWidth(1, 120);  // Width for "000  000  000" with border
   }
 
   // Update header with scheme name (path is private in RenderColorScheme)
