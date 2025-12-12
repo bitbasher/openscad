@@ -19,12 +19,8 @@ set_target_properties(wwwidgets PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${WWWIDGETS_INCLUDE_DIR}"
 )
 
-# Link Qt6 libraries that wwwidgets depends on
-target_link_libraries(wwwidgets INTERFACE
-  Qt6::Core
-  Qt6::Gui
-  Qt6::Widgets
-)
+# Note: Qt6 libraries will be linked automatically when OpenSCADLibInternal links both Qt6 and wwwidgets
+# We don't link them here because Qt6 hasn't been found yet at this point in the build
 
 message(STATUS "wwWidgets: ${WWWIDGETS_INCLUDE_DIR}")
 message(STATUS "wwWidgets library: ${WWWIDGETS_LIB_DIR}/libwwwidgets.a")
