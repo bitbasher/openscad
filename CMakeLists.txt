@@ -11,6 +11,12 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+# Job pool configuration to prevent system crashes
+# Limit compilation to -j4 and linking to -j2 to reduce memory pressure
+set_property(GLOBAL APPEND PROPERTY JOB_POOLS compile_pool=4 link_pool=2)
+set(CMAKE_JOB_POOL_COMPILE compile_pool)
+set(CMAKE_JOB_POOL_LINK link_pool)
+
 # Let AUTOMOC and AUTOUIC process GENERATED files.
 cmake_policy(SET CMP0071 NEW)
 # FindOpenGL prefers GLVND by default when available.
