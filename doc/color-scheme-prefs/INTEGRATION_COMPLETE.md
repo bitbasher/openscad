@@ -36,7 +36,7 @@ This makes the QwwColorComboBox widget available for use in color preferences.
 
 **Location:** `d:/repositories/openscad-master/src/ext/wwwidgets/`
 
-```
+```text
 src/ext/wwwidgets/
 ├── CMakeLists.txt           (✅ Created - IMPORTED library setup)
 ├── VERSION.txt              (✅ Created - metadata template)
@@ -49,6 +49,7 @@ src/ext/wwwidgets/
 **File:** `src/ext/wwwidgets/CMakeLists.txt`
 
 Defines the wwWidgets static library for CMake:
+
 - Sets IMPORTED_LOCATION to expected library path: `lib/libwwwidgets.a`
 - Sets INTERFACE_INCLUDE_DIRECTORIES to expected headers: `include/`
 - Links required Qt6 components automatically (Qt6::Core, Qt6::Gui, Qt6::Widgets)
@@ -64,12 +65,14 @@ Defines the wwWidgets static library for CMake:
 ## Current State
 
 ### OpenSCAD is Ready ✅
+
 - ✅ CMake configured to import wwwidgets
 - ✅ Source includes qwwcolorcombobox.h
 - ✅ Linking setup for both Qt5 and Qt6
 - ✅ Directory structure ready to receive artifacts
 
 ### Awaiting wwWidgets Artifacts ⏳
+
 - ⏳ `src/ext/wwwidgets/include/` - Needs headers from deploy-openscad
 - ⏳ `src/ext/wwwidgets/lib/libwwwidgets.a` - Needs library from deploy-openscad
 - ⏳ `src/ext/wwwidgets/VERSION.txt` - Needs metadata update
@@ -104,6 +107,7 @@ cp build/deploy-openscad/lib/libwwwidgets.a \
 ### Phase 3: Update Metadata
 
 Edit `src/ext/wwwidgets/VERSION.txt` with:
+
 - Qt Version: 6.10.1
 - Build Date: [current date]
 - Source Commit: [from `git rev-parse HEAD` in wwWidgets repo]
@@ -142,17 +146,20 @@ cmake --build . -j 4
 ## Technical Configuration
 
 ### Qt Version
+
 - **Current Setting:** USE_QT6=ON (for all platforms)
 - **Reason:** MSYS2 Qt Creator only supports Qt6
 - **wwWidgets Build:** Must use Qt6 to match
 
 ### Build Environment
+
 - **Compiler:** MinGW64 (g++)
 - **System:** MSYS2 MINGW64 terminal
 - **CMake:** 3.25 or later
 - **Qt:** 6.10.1 with Core5Compat, Widgets, OpenGL modules
 
 ### Library Configuration
+
 - **Type:** Static library (libwwwidgets.a)
 - **Dependencies:** Qt6::Core, Qt6::Gui, Qt6::Widgets
 - **Architecture:** x86_64
@@ -176,17 +183,20 @@ Before building, users should verify:
 ## Troubleshooting
 
 ### If CMake fails to find libwwwidgets.a
+
 1. Check file exists: `ls -l src/ext/wwwidgets/lib/libwwwidgets.a`
 2. Verify it's a valid library: `file src/ext/wwwidgets/lib/libwwwidgets.a`
 3. Clear CMake cache: `rm -rf build && mkdir build`
 4. Reconfigure
 
 ### If compilation errors on qwwcolorcombobox.h
+
 1. Check headers copied: `ls src/ext/wwwidgets/include/`
 2. Verify CMakeLists.txt INTERFACE_INCLUDE_DIRECTORIES correct
 3. Check no typos in header filename
 
 ### If link errors on wwWidgets symbols
+
 1. Verify library with: `nm src/ext/wwwidgets/lib/libwwwidgets.a | head -20`
 2. Check MinGW64 compiler matches (should be same used for wwWidgets)
 3. Ensure Qt version match (USE_QT6=ON)
@@ -195,7 +205,7 @@ Before building, users should verify:
 
 ## Architecture Diagram
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  OpenSCAD Build System (d:/repositories/openscad-master)    │
 ├─────────────────────────────────────────────────────────────┤
@@ -255,10 +265,12 @@ Integration is considered successful when:
 ## Contact & Support
 
 For detailed information, see:
+
 - **WWWIDGETS_INTEGRATION_SUMMARY.md** - Complete technical details
 - **WWWIDGETS_BUILD_CHECKLIST.md** - Step-by-step deployment guide
 
 For issues during build:
+
 1. Check CMake output for specific errors
 2. Verify artifact locations
 3. Ensure Qt version matches (6.10.1)

@@ -48,7 +48,7 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 #include <QRegularExpression>
-#include "qwwcolorcombobox.h"
+// #include "qwwcolorcombobox.h"  // TODO: Enable after wwWidgets artifacts deployed
 #include <QRegularExpressionValidator>
 #include <QStatusBar>
 #include <QSettings>
@@ -1665,18 +1665,10 @@ void Preferences::populate3DColorTable(const QString& schemeName)
       QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;").arg(r).arg(g).arg(b));
     tableWidget3DColors->setCellWidget(row, 1, rgbLabel);
 
-    // Color picker column - QwwColorComboBox
-    QwwColorComboBox *colorCombo = new QwwColorComboBox();
-    colorCombo->setStandardColors();
-    colorCombo->setCurrentColor(qcolor);
-    colorCombo->setColorDialogEnabled(true);
-
-    // TODO: Connect signal to update color scheme when changed
-    // connect(colorCombo, &QwwColorComboBox::activated, [this, row](const QColor &newColor) {
-    //   // Update color scheme and refresh preview
-    // });
-
-    tableWidget3DColors->setCellWidget(row, 2, colorCombo);
+    // Color picker column placeholder until wwWidgets is deployed
+    QLabel *colorPlaceholder = new QLabel("(color picker requires wwWidgets)");
+    colorPlaceholder->setAlignment(Qt::AlignCenter);
+    tableWidget3DColors->setCellWidget(row, 2, colorPlaceholder);
 
     row++;
   }

@@ -35,6 +35,14 @@ UNICODE {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 
 %%
 
+0[xX]{H}+ {
+                    try {
+                        // Parse hexadecimal number (skip "0x" prefix)
+                        unsigned long long ull = strtoull(yytext + 2, NULL, 16);
+                        comment_parserlval.num = (double)ull;
+                        return NUM;
+                    } catch (...) {}
+                }
 
 [+-]?{D}+{E}? |
 [+-]?{D}*\.{D}+{E}? |
@@ -44,12 +52,12 @@ UNICODE {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
                         return NUM;
                     } catch (boost::bad_lexical_cast&) {}
                 }
-                
+
 "[" { return yytext[0];}
 "]" { return yytext[0];}
 "," { return yytext[0];}
 ":" { return yytext[0];}
-  
+
 [ \t]
 
 \"			{ BEGIN(cond_string); stringcon.clear(); }
@@ -69,7 +77,7 @@ UNICODE {U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U}
 			return WORD; }
 }
 
-   
+
 [^(\[ \] \, \" \:)]* { comment_parserlval.text=strdup(yytext); return WORD;}
 
 . { }

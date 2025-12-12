@@ -13,6 +13,7 @@ This document describes the integration of the wwWidgets library (specifically Q
 The wwWidgets library integration into OpenSCAD has been successfully configured using a pre-built artifact deployment strategy. OpenSCAD's build system is now ready to accept pre-built wwWidgets headers and libraries without requiring complex Git submodule setup. All CMake configuration and source code modifications are in place and verified.
 
 ### Current State
+
 - ✅ CMakeLists.txt configured to import wwwidgets
 - ✅ Preferences.cc includes qwwcolorcombobox.h
 - ✅ Directory structure created and ready for artifacts
@@ -24,7 +25,7 @@ The wwWidgets library integration into OpenSCAD has been successfully configured
 
 #### Location: `d:/repositories/openscad-master/CMakeLists.txt`
 
-**Change 1: Added wwWidgets subdirectory import (line 427)**
+## Change 1: Added wwWidgets subdirectory import (line 427)
 
 ```cmake
 find_package(PkgConfig)
@@ -97,7 +98,8 @@ This enables the use of QwwColorComboBox widget in the color preferences setup.
 #### Location: `d:/repositories/openscad-master/src/ext/wwwidgets/`
 
 Created the following directory structure:
-```
+
+```text
 src/ext/wwwidgets/
 ├── CMakeLists.txt           # Build configuration for imported library
 ├── VERSION.txt              # Version tracking file
@@ -149,7 +151,7 @@ message(STATUS "wwWidgets library: ${WWWIDGETS_LIB_DIR}/libwwwidgets.a")
 
 #### Location: `d:/repositories/openscad-master/src/ext/wwwidgets/VERSION.txt`
 
-```
+```text
 wwWidgets Pre-built Library Version Information
 =================================================
 
@@ -188,6 +190,7 @@ Instead of using Git submodules (which had path resolution issues), this integra
 ## Integration Points
 
 ### Preferences Dialog
+
 - **File**: `src/gui/Preferences.cc`
 - **Widget**: QwwColorComboBox for intuitive color selection
 - **Features**:
@@ -196,17 +199,20 @@ Instead of using Git submodules (which had path resolution issues), this integra
   - Visual color picker integration
 
 ### Dependencies
+
 - Qt6::Core, Qt6::Gui, Qt6::Widgets (linked through wwwidgets)
 - C++17 standard (OpenSCAD requirement)
 
 ## Pending Tasks
 
-### User Actions (wwWidgets side - separate window):
+### User Actions (wwWidgets side - separate window)
+
 1. Build wwWidgets library with deploy-openscad target
 2. Generate libwwwidgets.a static library
 3. Generate header files with QwwColorComboBox interface
 
-### Integration Tasks (OpenSCAD side):
+### Integration Tasks (OpenSCAD side)
+
 1. Copy `deploy-openscad/include/*` to `src/ext/wwwidgets/include/`
 2. Copy `deploy-openscad/lib/libwwwidgets.a` to `src/ext/wwwidgets/lib/`
 3. Update VERSION.txt with source commit hash and build date
@@ -228,21 +234,25 @@ Instead of using Git submodules (which had path resolution issues), this integra
 ## Troubleshooting
 
 ### CMake Error: "libwwwidgets.a not found"
+
 - Check that src/ext/wwwidgets/lib/libwwwidgets.a exists
 - Verify wwWidgets build completed successfully
 - Confirm deploy-openscad target was selected during build
 
 ### Compilation Error: "qwwcolorcombobox.h not found"
+
 - Check that src/ext/wwwidgets/include/ contains header files
 - Verify WWWIDGETS_INCLUDE_DIR is set correctly in CMakeLists.txt
 - Ensure headers were copied from deploy-openscad output
 
 ### Qt Version Mismatch Warning
+
 - Check CMakeLists.txt line 45: USE_QT6 setting
 - Verify wwWidgets was built with matching Qt version (Qt6.10.1)
 - Rebuild wwWidgets if Qt version changed
 
 ### Link Errors with wwwidgets symbols
+
 - Check that libwwwidgets.a is a valid static library: `file src/ext/wwwidgets/lib/libwwwidgets.a`
 - Verify MinGW compiler compatibility (MSYS2 MINGW64 used for both)
 - Check OpenSCAD target_link_libraries includes wwwidgets
@@ -261,14 +271,18 @@ Instead of using Git submodules (which had path resolution issues), this integra
 #### CMakeLists.txt
 
 **Change 1 - Line 427: Import wwWidgets IMPORTED library**
+
 - **Before:**
-  ```
+
+  ```cpp
   add_subdirectory(submodules)
 
   # The submodules will set up mimalloc...
   ```
+
 - **After:**
-  ```
+
+  ```cpp
   add_subdirectory(submodules)
 
   # Import pre-built wwWidgets library (Qt color combo box widgets)
@@ -276,58 +290,74 @@ Instead of using Git submodules (which had path resolution issues), this integra
 
   # The submodules will set up mimalloc...
   ```
+
 - **Impact:** Loads wwWidgets CMakeLists.txt which defines IMPORTED library
 
-**Change 2 - Line 1617: Add wwwidgets to Qt6 linking**
+## Change 2 - Line 1617: Add wwwidgets to Qt6 linking
+
 - **Before:**
-  ```
+
+  ```cpp
   target_link_libraries(OpenSCADLibInternal PUBLIC
     Qt6::Core Qt6::Core5Compat Qt6::Widgets Qt6::Multimedia Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Concurrent Qt6::Network Qt6::Svg
     ${QT6QSCINTILLA_LIBRARY} ${Qt6DBus_LIBRARIES} ${Qt6Gamepad_LIBRARIES}
   )
   ```
+
 - **After:**
-  ```
+
+  ```cpp
   target_link_libraries(OpenSCADLibInternal PUBLIC
     Qt6::Core Qt6::Core5Compat Qt6::Widgets Qt6::Multimedia Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Concurrent Qt6::Network Qt6::Svg
     ${QT6QSCINTILLA_LIBRARY} ${Qt6DBus_LIBRARIES} ${Qt6Gamepad_LIBRARIES}
     wwwidgets
   )
   ```
+
 - **Impact:** Links wwwidgets static library to OpenSCADLibInternal for Qt6 builds
 
 **Change 3 - Line 1629: Add wwwidgets to Qt5 linking**
+
 - **Before:**
-  ```
+
+  ```cpp
   target_link_libraries(OpenSCADLibInternal PUBLIC
     Qt5::Core Qt5::Widgets Qt5::Multimedia Qt5::OpenGL Qt5::Concurrent Qt5::Network Qt5::Svg
     ${QT5QSCINTILLA_LIBRARY} ${Qt5DBus_LIBRARIES} ${Qt5Gamepad_LIBRARIES}
   )
   ```
+
 - **After:**
-  ```
+
+  ```cpp
   target_link_libraries(OpenSCADLibInternal PUBLIC
     Qt5::Core Qt5::Widgets Qt5::Multimedia Qt5::OpenGL Qt5::Concurrent Qt5::Network Qt5::Svg
     ${QT5QSCINTILLA_LIBRARY} ${Qt5DBus_LIBRARIES} ${Qt5Gamepad_LIBRARIES}
     wwwidgets
   )
   ```
+
 - **Impact:** Links wwwidgets static library to OpenSCADLibInternal for Qt5 builds (fallback)
 
-#### src/gui/Preferences.cc
+### src/gui/Preferences.cc
 
-**Change 1 - Line 51: Add QwwColorComboBox include**
+## Change 1 - Line 51: Add QwwColorComboBox include
+
 - **Before:**
+
   ```cpp
   #include <QRegularExpression>
   #include <QRegularExpressionValidator>
   ```
+
 - **After:**
+
   ```cpp
   #include <QRegularExpression>
   #include "qwwcolorcombobox.h"
   #include <QRegularExpressionValidator>
   ```
+
 - **Impact:** Makes QwwColorComboBox widget available for use in color preferences
 
 ### Integration Verification
@@ -383,7 +413,7 @@ grep -n "qwwcolorcombobox.h" src/gui/Preferences.cc
 
 ## References
 
-- wwWidgets Project: https://github.com/bitbasher/wwWidgets-1.0-qt5.git
+- wwWidgets Project: <https://github.com/bitbasher/wwWidgets-1.0-qt5.git>
 - Branch: port-to-msys-mingw64
 - Qt Version: 6.10.1 (MSYS2 MINGW64)
 - Compiler: g++ (MinGW64)

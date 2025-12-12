@@ -1349,6 +1349,7 @@ set(GUI_SOURCES
   src/gui/parameter/GroupWidget.cc
   src/gui/parameter/ParameterCheckBox.cc
   src/gui/parameter/ParameterComboBox.cc
+  src/gui/parameter/ParameterHexSpinBox.cc
   src/gui/parameter/ParameterSlider.cc
   src/gui/parameter/ParameterSpinBox.cc
   src/gui/parameter/ParameterText.cc
@@ -1452,6 +1453,7 @@ set(GUI_UIS
     src/gui/parameter/ParameterCheckBox.ui
     src/gui/parameter/ParameterComboBox.ui
     src/gui/parameter/ParameterDescriptionWidget.ui
+    src/gui/parameter/ParameterHexSpinBox.ui
     src/gui/parameter/ParameterSlider.ui
     src/gui/parameter/ParameterSpinBox.ui
     src/gui/parameter/ParameterText.ui

@@ -396,6 +396,7 @@ struct NumericLimits {
   boost::optional<double> minimum;
   boost::optional<double> maximum;
   boost::optional<double> step;
+  bool displayAsHex = false;
 };
 static NumericLimits parseNumericLimits(const Expression *parameter, const std::vector<double>& values)
 {
@@ -431,6 +432,13 @@ static NumericLimits parseNumericLimits(const Expression *parameter, const std::
     }
     if (output.maximum && value > output.maximum) {
       output.maximum = value;
+    }
+  }
+
+  // Check if the raw comment text contains hex notation (0x or 0X prefix)
+  if (!raw_text.empty()) {
+    if (raw_text.find("0x") != std::string::npos || raw_text.find("0X") != std::string::npos) {
+      output.displayAsHex = true;
     }
   }
 
@@ -502,9 +510,9 @@ std::unique_ptr<ParameterObject> ParameterObject::fromAssignment(const Assignmen
 
     if (expression->isDouble()) {
       double value = expression->toDouble();
-      NumericLimits limits = parseNumericLimits(parameter, {value});
+      NumericLimits limits = parseNumericLimits(parameter, {value}, parameterAnnotation->getRawText());
       return std::make_unique<NumberParameter>(name, description, group, value, limits.minimum,
-                                               limits.maximum, limits.step);
+                                               limits.maximum, limits.step, limits.displayAsHex);
     }
   } else if (const auto *expression = dynamic_cast<const Vector *>(valueExpression)) {
     if (expression->getChildren().size() < 1 || expression->getChildren().size() > 4) {
@@ -523,7 +531,7 @@ std::unique_ptr<ParameterObject> ParameterObject::fromAssignment(const Assignmen
       value.push_back(item->toDouble());
     }
 
-    NumericLimits limits = parseNumericLimits(parameter, value);
+    NumericLimits limits = parseNumericLimits(parameter, value, parameterAnnotation->getRawText());
     return std::make_unique<VectorParameter>(name, description, group, value, limits.minimum,
                                              limits.maximum, limits.step);
   }

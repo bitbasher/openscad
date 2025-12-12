@@ -11,14 +11,17 @@
 ## What Has Been Completed
 
 ### 1. CMakeLists.txt Configuration
+
 - ✅ Added wwWidgets subdirectory import (line 427)
 - ✅ Added wwwidgets to Qt6 linking (line 1617)
 - ✅ Added wwwidgets to Qt5 linking (line 1629)
 
 ### 2. Source Code Updates
+
 - ✅ Added #include "qwwcolorcombobox.h" to Preferences.cc (line 51)
 
 ### 3. Directory Structure
+
 - ✅ Created src/ext/wwwidgets/ with subdirectories:
   - CMakeLists.txt (IMPORTED library definition)
   - include/ (awaiting headers)
@@ -26,6 +29,7 @@
   - VERSION.txt (metadata template)
 
 ### 4. Documentation
+
 - ✅ WWWIDGETS_INTEGRATION_SUMMARY.md
 - ✅ WWWIDGETS_BUILD_CHECKLIST.md
 - ✅ INTEGRATION_COMPLETE.md
@@ -47,9 +51,10 @@
 
 ## What Needs to Happen Next
 
-### For Full Integration (User Must Do):
+### For Full Integration (User Must Do)
 
 **Step 1:** Build wwWidgets (separate window/terminal)
+
 ```bash
 cd /path/to/wwWidgets-repo
 mkdir build && cd build
@@ -58,6 +63,7 @@ cmake --build . --target deploy-openscad
 ```
 
 **Step 2:** Copy artifacts to OpenSCAD
+
 ```bash
 # Copy headers
 cp -r build/deploy-openscad/include/* \
@@ -69,7 +75,8 @@ cp build/deploy-openscad/lib/libwwwidgets.a \
 ```
 
 **Step 3:** Update VERSION.txt
-```
+
+```text
 Qt Version: 6.10.1
 Build Date: [today's date]
 Source Commit: [run: git -C /path/to/wwWidgets rev-parse HEAD]
@@ -78,6 +85,7 @@ Build Target: deploy-openscad
 ```
 
 **Step 4:** Build OpenSCAD
+
 ```bash
 cd d:/repositories/openscad-master/build
 cmake .. -DUSE_QT6=ON -DCMAKE_BUILD_TYPE=Release
@@ -85,6 +93,7 @@ cmake --build . -j 4
 ```
 
 **Step 5:** Test
+
 ```bash
 ./OpenSCAD
 # Open Preferences → verify color widgets appear
@@ -105,10 +114,12 @@ cmake --build . -j 4
 ## Important Files
 
 ### Modified Files
+
 1. `CMakeLists.txt` - 3 changes (lines 427, 1617, 1629)
 2. `src/gui/Preferences.cc` - 1 change (line 51 include)
 
 ### New Files
+
 1. `src/ext/wwwidgets/CMakeLists.txt` - Imported library config
 2. `src/ext/wwwidgets/VERSION.txt` - Metadata
 3. `WWWIDGETS_INTEGRATION_SUMMARY.md` - Full architecture
@@ -175,6 +186,7 @@ cmake .. -DUSE_QT6=ON 2>&1 | grep -i "wwwidgets\|qscintilla"
 ## Additional Resources
 
 For detailed information, consult:
+
 1. **WWWIDGETS_INTEGRATION_SUMMARY.md** - Architecture and design
 2. **WWWIDGETS_BUILD_CHECKLIST.md** - Step-by-step with examples
 3. **INTEGRATION_COMPLETE.md** - Full completion report
@@ -186,6 +198,7 @@ For detailed information, consult:
 **OpenSCAD is ready to integrate wwWidgets.**
 
 All CMake and source code changes are in place. The build system will automatically:
+
 - Import the wwWidgets static library
 - Link it to OpenSCADLibInternal
 - Make QwwColorComboBox available to Preferences

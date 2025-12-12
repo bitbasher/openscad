@@ -33,8 +33,8 @@
 
 #include "core/Expression.h"
 
-Annotation::Annotation(std::string name, std::shared_ptr<Expression> expr)
-  : name(std::move(name)), expr(std::move(expr))
+Annotation::Annotation(std::string name, std::shared_ptr<Expression> expr, std::string raw_text)
+  : name(std::move(name)), expr(std::move(expr)), raw_text(std::move(raw_text))
 {
 }
 

@@ -292,8 +292,8 @@ void CommentParser::collectParameters(const std::string& fulltext, SourceFile *r
     }
     if (!params) params = EmptyStringLiteral;
 
-    // adding parameter to the list
-    annotationList->push_back(Annotation("Parameter", params));
+    // adding parameter to the list (with raw comment text for hex detection)
+    annotationList->push_back(Annotation("Parameter", params, comment));
 
     // extracting the description
     std::string descr = getDescription(fulltext, firstLine - 1);

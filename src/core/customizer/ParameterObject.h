@@ -88,13 +88,14 @@ class NumberParameter : public ParameterObject
 public:
   NumberParameter(const std::string& name, const std::string& description, const std::string& group,
                   double defaultValue, boost::optional<double> minimum, boost::optional<double> maximum,
-                  boost::optional<double> step)
+                  boost::optional<double> step, bool displayAsHex = false)
     : ParameterObject(name, description, group, ParameterObject::ParameterType::Number),
       value(defaultValue),
       defaultValue(defaultValue),
       minimum(minimum),
       maximum(maximum),
-      step(step)
+      step(step),
+      displayAsHex(displayAsHex)
   {
   }
 
@@ -109,6 +110,7 @@ public:
   boost::optional<double> minimum;
   boost::optional<double> maximum;
   boost::optional<double> step;
+  bool displayAsHex;
 };
 
 class VectorParameter : public ParameterObject

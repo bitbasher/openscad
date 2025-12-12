@@ -7,6 +7,7 @@ This PR completes the integration of wwWidgets library (QwwColorComboBox and rel
 ## Integration Strategy
 
 **Pre-built Artifact Deployment** - Clean, modular approach avoiding Git submodule complexity:
+
 - wwWidgets library built separately, artifacts deployed to OpenSCAD as pre-built library
 - CMake IMPORTED library pattern for clean integration
 - Qt6 unified across all platforms (MSYS2/MinGW64 compatibility)
@@ -16,15 +17,18 @@ This PR completes the integration of wwWidgets library (QwwColorComboBox and rel
 ### 1. CMakeLists.txt (3 changes)
 
 **Line 427 - Import wwWidgets library:**
+
 ```cmake
 add_subdirectory(submodules)
 
 # Import pre-built wwWidgets library (Qt color combo box widgets)
 add_subdirectory(src/ext/wwwidgets)
 ```
+
 Loads `src/ext/wwwidgets/CMakeLists.txt` which defines the IMPORTED library target.
 
 **Line 1617 - Qt6 linking:**
+
 ```cmake
 target_link_libraries(OpenSCADLibInternal PUBLIC
   Qt6::Core Qt6::Core5Compat Qt6::Widgets Qt6::Multimedia Qt6::OpenGL Qt6::OpenGLWidgets Qt6::Concurrent Qt6::Network Qt6::Svg
@@ -32,9 +36,11 @@ target_link_libraries(OpenSCADLibInternal PUBLIC
   wwwidgets
 )
 ```
+
 Adds wwwidgets to Qt6 target linking.
 
 **Line 1629 - Qt5 linking:**
+
 ```cmake
 target_link_libraries(OpenSCADLibInternal PUBLIC
   Qt5::Core Qt5::Widgets Qt5::Multimedia Qt5::OpenGL Qt5::Concurrent Qt5::Network Qt5::Svg
@@ -42,22 +48,26 @@ target_link_libraries(OpenSCADLibInternal PUBLIC
   wwwidgets
 )
 ```
+
 Adds wwwidgets to Qt5 target linking (fallback support).
 
 ### 2. src/gui/Preferences.cc (1 change)
 
 **Line 51 - Include QwwColorComboBox header:**
+
 ```cpp
 #include <QRegularExpression>
 #include "qwwcolorcombobox.h"
 #include <QRegularExpressionValidator>
 ```
+
 Enables QwwColorComboBox widget for color preferences UI.
 
 ### 3. New Directory Structure - src/ext/wwwidgets/
 
 **Created infrastructure for pre-built artifacts:**
-```
+
+```text
 src/ext/wwwidgets/
 ├── CMakeLists.txt           # IMPORTED library definition
 ├── VERSION.txt              # Metadata template
@@ -66,6 +76,7 @@ src/ext/wwwidgets/
 ```
 
 **CMakeLists.txt** - Defines IMPORTED static library:
+
 - Sets IMPORTED_LOCATION to lib/libwwwidgets.a
 - Sets INTERFACE_INCLUDE_DIRECTORIES to include/
 - Links Qt6::Core, Qt6::Gui, Qt6::Widgets automatically
@@ -76,16 +87,19 @@ src/ext/wwwidgets/
 ## Build System Flow
 
 ### CMake Configuration Stage
+
 1. `add_subdirectory(src/ext/wwwidgets)` loads CMakeLists.txt
 2. Creates IMPORTED library target named `wwwidgets`
 3. Maps to `src/ext/wwwidgets/lib/libwwwidgets.a` and headers
 
 ### Compilation Stage
+
 1. Preprocessor finds QwwColorComboBox headers in `src/ext/wwwidgets/include/`
 2. Compiles Preferences.cc with symbol definitions available
 3. Generates object files
 
 ### Linking Stage
+
 1. Linker resolves QwwColorComboBox symbols from libwwwidgets.a
 2. Final OpenSCAD executable contains color widget functionality
 
@@ -103,12 +117,14 @@ All changes verified on December 11, 2024:
 ## Deployment Instructions
 
 ### Step 1: Build wwWidgets (separate repository)
+
 ```bash
 cd /path/to/wwWidgets-repo/build
 cmake --build . --target deploy-openscad
 ```
 
 ### Step 2: Deploy Artifacts
+
 ```bash
 # Copy headers and library from deploy-openscad output
 cp -r build/deploy-openscad/include/* \
@@ -118,8 +134,10 @@ cp build/deploy-openscad/lib/libwwwidgets.a \
 ```
 
 ### Step 3: Update Metadata
+
 Edit `src/ext/wwwidgets/VERSION.txt`:
-```
+
+```text
 Qt Version: 6.10.1
 Build Date: [date]
 Source Commit: [wwWidgets commit hash]
@@ -128,6 +146,7 @@ Build Target: deploy-openscad
 ```
 
 ### Step 4: Build OpenSCAD
+
 ```bash
 cd d:/repositories/openscad-master/build
 cmake .. -DUSE_QT6=ON -DCMAKE_BUILD_TYPE=Release
@@ -137,6 +156,7 @@ cmake --build . -j 4
 ## Testing
 
 After deployment and build:
+
 1. Launch OpenSCAD
 2. Open Edit → Preferences
 3. Navigate to 3D View or color preferences
@@ -154,6 +174,7 @@ After deployment and build:
 ## Documentation
 
 Complete integration documentation available in:
+
 - **WWWIDGETS_INTEGRATION_SUMMARY.md** - Full technical details, architecture, troubleshooting
 - **WWWIDGETS_BUILD_CHECKLIST.md** - Step-by-step deployment guide
 - **INTEGRATION_COMPLETE.md** - Completion status and next steps
@@ -162,6 +183,7 @@ Complete integration documentation available in:
 ## Why This Approach
 
 **Benefits of pre-built artifact deployment:**
+
 - ✅ No complex submodule path resolution issues
 - ✅ Clean separation of concerns (wwWidgets built independently)
 - ✅ Easy to update library without touching OpenSCAD build config
@@ -173,11 +195,13 @@ Complete integration documentation available in:
 ## Status
 
 **OpenSCAD Integration:** ✅ COMPLETE
+
 - CMake configuration: Ready
 - Source code updates: Ready
 - Directory structure: Created and ready
 
 **Awaiting:** wwWidgets artifact deployment
+
 - Headers to be copied to: `src/ext/wwwidgets/include/`
 - Library to be copied to: `src/ext/wwwidgets/lib/libwwwidgets.a`
 
