@@ -396,9 +396,10 @@ struct NumericLimits {
   boost::optional<double> minimum;
   boost::optional<double> maximum;
   boost::optional<double> step;
-  bool displayAsHex = false;
+  ParameterObject::NumericDisplayType displayType = ParameterObject::NumericDisplayType::Decimal;
 };
-static NumericLimits parseNumericLimits(const Expression *parameter, const std::vector<double>& values)
+static NumericLimits parseNumericLimits(const Expression *parameter, const std::vector<double>& values,
+                                        const std::string& raw_text = "")
 {
   NumericLimits output;
 
@@ -436,9 +437,12 @@ static NumericLimits parseNumericLimits(const Expression *parameter, const std::
   }
 
   // Check if the raw comment text contains hex notation (0x or 0X prefix)
+  // and determine appropriate display type
   if (!raw_text.empty()) {
     if (raw_text.find("0x") != std::string::npos || raw_text.find("0X") != std::string::npos) {
-      output.displayAsHex = true;
+      // For now, default to Hexadecimal (single number)
+      // Future: detect vector size and set ColorRGB2/3 or ColorRGBA2/3
+      output.displayType = ParameterObject::NumericDisplayType::Hexadecimal;
     }
   }
 
@@ -512,7 +516,7 @@ std::unique_ptr<ParameterObject> ParameterObject::fromAssignment(const Assignmen
       double value = expression->toDouble();
       NumericLimits limits = parseNumericLimits(parameter, {value}, parameterAnnotation->getRawText());
       return std::make_unique<NumberParameter>(name, description, group, value, limits.minimum,
-                                               limits.maximum, limits.step, limits.displayAsHex);
+                                               limits.maximum, limits.step, limits.displayType);
     }
   } else if (const auto *expression = dynamic_cast<const Vector *>(valueExpression)) {
     if (expression->getChildren().size() < 1 || expression->getChildren().size() > 4) {

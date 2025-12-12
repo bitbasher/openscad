@@ -19,6 +19,16 @@ class ParameterObject
 public:
   enum class ParameterType { Bool, String, Number, Vector, Enum };
 
+  // Display type for numeric parameters and vector elements
+  enum class NumericDisplayType {
+    Decimal,      // Normal decimal number (default)
+    Hexadecimal,  // Single hex number: 0xFF (auto-sized width based on max value)
+    ColorRGB2,    // 3-element RGB vector: 0x00-0xFF range per channel (2 hex digits)
+    ColorRGBA2,   // 4-element RGBA vector: 0x00-0xFF range per channel (2 hex digits)
+    ColorRGB3,    // 3-element RGB vector: 0x000-0xFFF range per channel (3 hex digits)
+    ColorRGBA3    // 4-element RGBA vector: 0x000-0xFFF range per channel (3 hex digits)
+  };
+
   virtual ~ParameterObject() = default;
   static std::unique_ptr<ParameterObject> fromAssignment(const Assignment *assignment);
 
@@ -88,14 +98,15 @@ class NumberParameter : public ParameterObject
 public:
   NumberParameter(const std::string& name, const std::string& description, const std::string& group,
                   double defaultValue, boost::optional<double> minimum, boost::optional<double> maximum,
-                  boost::optional<double> step, bool displayAsHex = false)
+                  boost::optional<double> step,
+                  NumericDisplayType displayType = NumericDisplayType::Decimal)
     : ParameterObject(name, description, group, ParameterObject::ParameterType::Number),
       value(defaultValue),
       defaultValue(defaultValue),
       minimum(minimum),
       maximum(maximum),
       step(step),
-      displayAsHex(displayAsHex)
+      displayType(displayType)
   {
   }
 
@@ -110,7 +121,7 @@ public:
   boost::optional<double> minimum;
   boost::optional<double> maximum;
   boost::optional<double> step;
-  bool displayAsHex;
+  NumericDisplayType displayType;
 };
 
 class VectorParameter : public ParameterObject

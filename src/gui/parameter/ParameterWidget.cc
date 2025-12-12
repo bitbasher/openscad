@@ -36,6 +36,7 @@
 
 #include "gui/parameter/GroupWidget.h"
 #include "gui/parameter/ParameterSpinBox.h"
+#include "gui/parameter/ParameterHexSpinBox.h"
 #include "gui/parameter/ParameterComboBox.h"
 #include "gui/parameter/ParameterSlider.h"
 #include "gui/parameter/ParameterCheckBox.h"
@@ -418,7 +419,11 @@ ParameterVirtualWidget *ParameterWidget::createParameterWidget(ParameterObject *
     return new ParameterText(this, static_cast<StringParameter *>(parameter), descriptionStyle);
   } else if (parameter->type() == ParameterObject::ParameterType::Number) {
     auto *numberParameter = static_cast<NumberParameter *>(parameter);
-    if (numberParameter->minimum && numberParameter->maximum) {
+
+    // Choose widget based on display type
+    if (numberParameter->displayType == ParameterObject::NumericDisplayType::Hexadecimal) {
+      return new ParameterHexSpinBox(this, numberParameter, descriptionStyle);
+    } else if (numberParameter->minimum && numberParameter->maximum) {
       return new ParameterSlider(this, numberParameter, descriptionStyle);
     } else {
       return new ParameterSpinBox(this, numberParameter, descriptionStyle);
