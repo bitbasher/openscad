@@ -1,5 +1,6 @@
 #include "glview/ColorMap.h"
 #include "core/ColorUtil.h"
+#include "glview/RenderSettings.h"
 #include "utils/printutils.h"
 #include "platform/PlatformUtils.h"
 
@@ -198,6 +199,11 @@ std::list<std::string> ColorMap::colorSchemeNames(bool guiOnly) const
 
 Color4f ColorMap::getColor(const ColorScheme& cs, const RenderColor rc)
 {
+  // Session overrides take precedence
+  if (const auto override = RenderSettings::inst()->getColorOverride(rc)) {
+    return *override;
+  }
+
   if (cs.count(rc)) return cs.at(rc);
   if (ColorMap::inst()->defaultColorScheme().count(rc))
     return ColorMap::inst()->defaultColorScheme().at(rc);

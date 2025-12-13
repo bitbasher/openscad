@@ -1,6 +1,7 @@
 #include "glview/Renderer.h"
 #include "geometry/linalg.h"
 #include "glview/ColorMap.h"
+#include "glview/RenderSettings.h"
 #include "utils/printutils.h"
 #include "platform/PlatformUtils.h"
 #include "glview/system-gl.h"
@@ -164,6 +165,7 @@ void Renderer::setColorScheme(const ColorScheme& cs)
   colormap_[ColorMode::CUTOUT_EDGES] = ColorMap::getColor(cs, RenderColor::CGAL_EDGE_BACK_COLOR);
   colormap_[ColorMode::EMPTY_SPACE] = ColorMap::getColor(cs, RenderColor::BACKGROUND_COLOR);
   colorscheme_ = &cs;
+  color_override_revision_ = RenderSettings::inst()->colorOverrideRevision();
 }
 
 std::vector<SelectedObject> Renderer::findModelObject(const Vector3d& /*near_pt*/,
@@ -171,6 +173,14 @@ std::vector<SelectedObject> Renderer::findModelObject(const Vector3d& /*near_pt*
                                                       int /*mouse_y*/, double /*tolerance*/)
 {
   return {};
+}
+
+void Renderer::refreshColorSchemeIfDirty()
+{
+  const auto current_revision = RenderSettings::inst()->colorOverrideRevision();
+  if (colorscheme_ && current_revision != color_override_revision_) {
+    setColorScheme(*colorscheme_);
+  }
 }
 #else  // NULLGL
 

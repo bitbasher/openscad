@@ -89,6 +89,8 @@ ThrownTogetherRenderer::ThrownTogetherRenderer(std::shared_ptr<CSGProducts> root
 void ThrownTogetherRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 {
   PRINTD("Thrown prepare");
+  refreshColorSchemeIfDirty();
+
   if (vertex_state_containers_.empty()) {
     VertexStateContainer& vertex_state_container = vertex_state_containers_.emplace_back();
 
@@ -115,6 +117,12 @@ void ThrownTogetherRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 
     vbo_builder.createInterleavedVBOs();
   }
+}
+
+void ThrownTogetherRenderer::setColorScheme(const ColorScheme& cs)
+{
+  Renderer::setColorScheme(cs);
+  vertex_state_containers_.clear();
 }
 
 void ThrownTogetherRenderer::draw(bool showedges, const ShaderUtils::ShaderInfo *shaderinfo) const

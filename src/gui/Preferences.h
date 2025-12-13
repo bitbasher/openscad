@@ -23,6 +23,7 @@
 #include "core/Settings.h"
 #include "gui/InitConfigurator.h"
 #include "gui/ScintillaEditor.h"
+#include "glview/ColorMap.h"
 
 class GlobalPreferences;
 class Preferences : public QMainWindow, public Ui::Preferences, public InitConfigurator
@@ -214,11 +215,14 @@ private:
   // Color scheme helper functions
   void populate3DColorTable(const QString& schemeName);
   void populateEditorColorTable(const QString& schemeName);
+  void onEditorColorPickerClicked(int row, const QString& keyPath, const QColor& initial);
   QString renderColorToString(int colorKey) const;
   void setup3DPreview();
   void setupEditorPreview();
   void update3DPreview(const QString& schemeName);
   void updateEditorPreview(const QString& schemeName);
+  void onColor3DPickerClicked(int row, RenderColor colorKey, const QString& schemeName,
+                              const QColor& initialColor);
 
   QSettings::SettingsMap defaultmap;
   QHash<const QAction *, QWidget *> prefPages;

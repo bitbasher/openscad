@@ -45,6 +45,7 @@
 #include "geometry/PolySet.h"
 #include "geometry/PolySetUtils.h"
 #include "glview/ColorMap.h"
+#include "glview/RenderSettings.h"
 #include "glview/VBORenderer.h"
 #include "glview/Renderer.h"
 #include "glview/ShaderUtils.h"
@@ -106,36 +107,85 @@ void PolySetRenderer::addGeometry(const std::shared_ptr<const Geometry>& geom)
 void PolySetRenderer::setColorScheme(const ColorScheme& cs)
 {
   Renderer::setColorScheme(cs);
+  // For Manifold (F6) rendering, treat MATERIAL/CUTOUT as CGAL face colors
+  colormap_[ColorMode::MATERIAL] = ColorMap::getColor(cs, RenderColor::CGAL_FACE_FRONT_COLOR);
+  colormap_[ColorMode::CUTOUT] = ColorMap::getColor(cs, RenderColor::CGAL_FACE_BACK_COLOR);
   colormap_[ColorMode::CGAL_FACE_2D_COLOR] = ColorMap::getColor(cs, RenderColor::CGAL_FACE_2D_COLOR);
   colormap_[ColorMode::CGAL_EDGE_2D_COLOR] = ColorMap::getColor(cs, RenderColor::CGAL_EDGE_2D_COLOR);
+  polyset_vertex_state_containers_.clear();
+  polygon_vertex_state_containers_.clear();
 }
 
 void PolySetRenderer::createPolySetStates(const ShaderUtils::ShaderInfo *shaderinfo)
 {
-  VertexStateContainer& vertex_state_container = polyset_vertex_state_containers_.emplace_back();
-  VBOBuilder vbo_builder(std::make_unique<VertexStateFactory>(), vertex_state_container);
+  // We need to render two groups: normal/front faces and cutout/back faces.
+  // Faces marked with color_index == -2 are cutout (difference) faces.
 
-  vbo_builder.addSurfaceData();  // position, normal, color
-  vbo_builder.addShaderData();
+  auto build_subset = [](const std::shared_ptr<const PolySet>& src,
+                         std::function<bool(int32_t)> face_pred) -> std::shared_ptr<PolySet> {
+    auto dst = std::make_shared<PolySet>(3);
+    dst->setTriangular(src->isTriangular());
+    // src->convexValue() is a tribool; if true set 1, else if false set 0, else leave default
+    auto cv = src->convexValue();
+    if (cv) dst->setConvexity(1);
+    else if (!cv) dst->setConvexity(0);
+    dst->setManifold(src->isManifold());
+    dst->vertices = src->vertices;  // keep full vertex buffer for indexing simplicity
+    dst->indices.reserve(src->indices.size());
+    dst->color_indices.reserve(src->color_indices.size());
+
+    // Preserve script-provided colors table
+    dst->colors = src->colors;
+
+    for (size_t i = 0; i < src->indices.size(); ++i) {
+      const int32_t cidx = (i < src->color_indices.size()) ? src->color_indices[i] : -1;
+      if (face_pred(cidx)) {
+        dst->indices.push_back(src->indices[i]);
+        dst->color_indices.push_back(cidx);
+      }
+    }
+    return dst;
+  };
+
+  // Prepare VBO builder and buffer sizes separately for each group
   const bool enable_barycentric = true;
 
-  size_t num_vertices = 0;
   for (const auto& polyset : this->polysets_) {
-    num_vertices += calcNumVertices(*polyset);
+    // Front/normal faces: cidx != -2
+    auto front_ps = build_subset(polyset, [](int32_t cidx) { return cidx != -2; });
+    if (!front_ps->indices.empty()) {
+      VertexStateContainer& vsc = polyset_vertex_state_containers_.emplace_back();
+      VBOBuilder vbo_builder(std::make_unique<VertexStateFactory>(), vsc);
+      vbo_builder.addSurfaceData();  // position, normal, color
+      vbo_builder.addShaderData();
+      add_shader_pointers(vbo_builder, shaderinfo);
+      vbo_builder.allocateBuffers(calcNumVertices(*front_ps));
+      vbo_builder.writeSurface();
+      Color4f default_front;
+      getColorSchemeColor(ColorMode::MATERIAL, default_front);
+      vbo_builder.create_surface(*front_ps, Transform3d::Identity(), default_front, enable_barycentric,
+                                 false);
+      vbo_builder.createInterleavedVBOs();
+    }
+
+    // Back/cutout faces: cidx == -2
+    auto back_ps = build_subset(polyset, [](int32_t cidx) { return cidx == -2; });
+    if (!back_ps->indices.empty()) {
+      VertexStateContainer& vsc = polyset_vertex_state_containers_.emplace_back();
+      VBOBuilder vbo_builder(std::make_unique<VertexStateFactory>(), vsc);
+      vbo_builder.addSurfaceData();
+      vbo_builder.addShaderData();
+      add_shader_pointers(vbo_builder, shaderinfo);
+      vbo_builder.allocateBuffers(calcNumVertices(*back_ps));
+      vbo_builder.writeSurface();
+      Color4f default_back;
+      getColorSchemeColor(ColorMode::CUTOUT, default_back);
+      // Force default color to ensure scheme CUTOUT applies to all back faces
+      vbo_builder.create_surface(*back_ps, Transform3d::Identity(), default_back, enable_barycentric,
+                                 true);
+      vbo_builder.createInterleavedVBOs();
+    }
   }
-  vbo_builder.allocateBuffers(num_vertices);
-
-  for (const auto& polyset : this->polysets_) {
-    Color4f color;
-    if (!polyset->colors.empty()) color = polyset->colors[0];
-    getShaderColor(ColorMode::MATERIAL, color, color);
-    add_shader_pointers(vbo_builder, shaderinfo);
-
-    vbo_builder.writeSurface();
-    vbo_builder.create_surface(*polyset, Transform3d::Identity(), color, enable_barycentric, false);
-  }
-
-  vbo_builder.createInterleavedVBOs();
 }
 
 void PolySetRenderer::createPolygonStates()
@@ -215,6 +265,15 @@ void PolySetRenderer::createPolygonEdgeStates()
 
 void PolySetRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 {
+  const auto current_rev = RenderSettings::inst()->colorOverrideRevision();
+  if (current_rev != color_override_revision_) {
+    polyset_vertex_state_containers_.clear();
+    polygon_vertex_state_containers_.clear();
+    if (colorscheme_) setColorScheme(*colorscheme_);
+  }
+
+  refreshColorSchemeIfDirty();
+
   if (polyset_vertex_state_containers_.empty() && polygon_vertex_state_containers_.empty()) {
     if (!this->polysets_.empty() && !this->polygons_.empty()) {
       LOG(message_group::Error, "PolySetRenderer::prepare() called with both polysets and polygons");

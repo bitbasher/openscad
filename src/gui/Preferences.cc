@@ -1615,6 +1615,9 @@ void Preferences::populate3DColorTable(const QString& schemeName)
   const RenderColorScheme *scheme = ColorMap::inst()->findRenderColorScheme(schemeName.toStdString());
   if (!scheme) return;
 
+  // Reset any transient color overrides when switching schemes
+  RenderSettings::inst()->clearColorOverrides();
+
   // Note: colorScheme() is non-const, so we need to cast away const
   // This is safe because we're only reading from it
   ColorScheme& colors = const_cast<RenderColorScheme *>(scheme)->colorScheme();
@@ -1663,24 +1666,11 @@ void Preferences::populate3DColorTable(const QString& schemeName)
     // Color picker column - simple button with QColorDialog
     QPushButton *colorButton = new QPushButton(tr("Pick…"));
     colorButton->setStyleSheet(QString("background: rgb(%1,%2,%3);").arg(r).arg(g).arg(b));
-    connect(colorButton, &QPushButton::clicked, this, [this, qcolor, row]() {
-      const QColor newColor = QColorDialog::getColor(qcolor, this, tr("Select color"));
-      if (!newColor.isValid()) return;
-      // Update the preview cell background immediately
-      if (auto *cell = tableWidget3DColors->cellWidget(row, 1)) {
-        cell->setStyleSheet(QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;")
-                              .arg(newColor.red())
-                              .arg(newColor.green())
-                              .arg(newColor.blue()));
-      }
-      if (auto *btn = qobject_cast<QPushButton *>(tableWidget3DColors->cellWidget(row, 2))) {
-        btn->setStyleSheet(QString("background: rgb(%1,%2,%3);")
-                             .arg(newColor.red())
-                             .arg(newColor.green())
-                             .arg(newColor.blue()));
-      }
-      // TODO: propagate color change into the scheme and persist
-    });
+    // [Prefs_known_good] Use named slot for color picker to keep code maintainable
+    connect(colorButton, &QPushButton::clicked, this,
+            [this, row, renderColor = colorPair.first, schemeName, qcolor]() {
+              onColor3DPickerClicked(row, renderColor, schemeName, qcolor);
+            });
 
     tableWidget3DColors->setCellWidget(row, 2, colorButton);
 
@@ -1773,42 +1763,50 @@ void Preferences::populateEditorColorTable(const QString& schemeName)
     nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
     tableWidgetEditorColors->setItem(row, 0, nameItem);
 
-    // Color column - visual patch only, no text
-    QTableWidgetItem *colorItem = new QTableWidgetItem("");
-    colorItem->setFlags(colorItem->flags() & ~Qt::ItemIsEditable);
-
-    // Try to parse as color (format: #RRGGBB or named colors)
+    // Parse color string (format: #RRGGBB or named colors)
     QString colorStr = QString::fromStdString(entry.second);
     QColor color(colorStr);
-    if (color.isValid()) {
-      colorItem->setBackground(QBrush(color));
-    }
 
-    tableWidgetEditorColors->setItem(row, 1, colorItem);
-
-    // RGB column - show hex values with padding
+    // 2nd column: centered RGB text with thick border in given color
+    QString rgbText;
     if (color.isValid()) {
-      QString rgbText = QString("%1  %2  %3")
-                          .arg(color.red(), 3, 16, QChar('0'))
-                          .arg(color.green(), 3, 16, QChar('0'))
-                          .arg(color.blue(), 3, 16, QChar('0'));
-      QTableWidgetItem *rgbItem = new QTableWidgetItem(rgbText);
-      rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
-      tableWidgetEditorColors->setItem(row, 2, rgbItem);
+      rgbText = QString("%1  %2  %3")
+                  .arg(color.red(), 3, 16, QChar('0'))
+                  .arg(color.green(), 3, 16, QChar('0'))
+                  .arg(color.blue(), 3, 16, QChar('0'));
     } else {
       // Non-color value (like width: 2)
-      QTableWidgetItem *rgbItem = new QTableWidgetItem(QString::fromStdString(entry.second));
-      rgbItem->setFlags(rgbItem->flags() & ~Qt::ItemIsEditable);
-      tableWidgetEditorColors->setItem(row, 2, rgbItem);
+      rgbText = QString::fromStdString(entry.second);
     }
+    QLabel *rgbLabel = new QLabel(rgbText);
+    rgbLabel->setAlignment(Qt::AlignCenter);
+    if (color.isValid()) {
+      rgbLabel->setStyleSheet(
+        QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;")
+          .arg(color.red())
+          .arg(color.green())
+          .arg(color.blue()));
+    }
+    tableWidgetEditorColors->setCellWidget(row, 1, rgbLabel);
+
+    // 3rd column: Pick button
+    QPushButton *pickBtn = new QPushButton(tr("Pick…"));
+    if (color.isValid()) {
+      pickBtn->setStyleSheet(
+        QString("background: rgb(%1,%2,%3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+    }
+    connect(pickBtn, &QPushButton::clicked, this, [this, row, entry, color]() {
+      onEditorColorPickerClicked(row, QString::fromStdString(entry.first), color);
+    });
+    tableWidgetEditorColors->setCellWidget(row, 2, pickBtn);
 
     row++;
   }
 
-  // Make color column square (width = row height)
+  // Columns widths: RGB suitable for text; pick button compact
   if (tableWidgetEditorColors->rowCount() > 0) {
-    int rowHeight = tableWidgetEditorColors->rowHeight(0);
-    tableWidgetEditorColors->setColumnWidth(1, rowHeight);
+    tableWidgetEditorColors->setColumnWidth(1, 120);
+    tableWidgetEditorColors->setColumnWidth(2, 80);
   }
 
   // Update header with scheme path
@@ -1868,22 +1866,20 @@ void Preferences::setupEditorPreview()
 
   // Set some sample OpenSCAD code
   QString sampleCode =
-    "// OpenSCAD Sample Code\n"
-    "module sample() {\n"
-    "  // Create a cube\n"
+    "// Editor preview sample\n"
+    "/* multi-line comment */\n"
+    "module sample(str) {\n"
+    "  // strings and operators\n"
+    "  echo(\"label=\" + str);\n"
+    "  a = 3; b = 5; c = sin(a) + cos(b) * 2;\n"
     "  cube([10, 10, 10]);\n"
-    "  \n"
-    "  // Add a cylinder\n"
-    "  translate([5, 5, 10])\n"
-    "    cylinder(h=5, r=3, $fn=32);\n"
+    "  translate([5, 5, 10]) cylinder(h=5, r=3, $fn=32);\n"
     "}\n"
-    "\n"
-    "/* Multi-line comment\n"
-    "   showing different colors */\n"
     "difference() {\n"
-    "  sample();\n"
+    "  sample(\"demo\");\n"
     "  sphere(r=8, $fn=64);\n"
     "}\n";
+  // editorPreview sample applied below
 
   editorPreview->qsci->setText(sampleCode);
   editorPreview->qsci->setReadOnly(true);
@@ -1918,4 +1914,57 @@ void Preferences::updateEditorPreview(const QString& schemeName)
 
   // Restore the original setting (don't save the preview change)
   settings.setValue("editor/colorscheme", oldScheme);
+}
+
+// Apply editor color change (preview only for now)
+void Preferences::onEditorColorPickerClicked(int row, const QString& keyPath, const QColor& initial)
+{
+  const QColor newColor = QColorDialog::getColor(initial, this, tr("Select color"));
+  if (!newColor.isValid()) return;
+  // Update RGB label styling
+  if (auto *cell = tableWidgetEditorColors->cellWidget(row, 1)) {
+    if (auto *lbl = qobject_cast<QLabel *>(cell)) {
+      lbl->setText(QString("%1  %2  %3")
+                     .arg(newColor.red(), 3, 16, QChar('0'))
+                     .arg(newColor.green(), 3, 16, QChar('0'))
+                     .arg(newColor.blue(), 3, 16, QChar('0')));
+      lbl->setStyleSheet(QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;")
+                           .arg(newColor.red())
+                           .arg(newColor.green())
+                           .arg(newColor.blue()));
+    }
+  }
+  if (auto *btn = qobject_cast<QPushButton *>(tableWidgetEditorColors->cellWidget(row, 2))) {
+    btn->setStyleSheet(QString("background: rgb(%1,%2,%3);")
+                         .arg(newColor.red())
+                         .arg(newColor.green())
+                         .arg(newColor.blue()));
+  }
+  // TODO: Persist editor color changes: requires editable scheme model and write-back.
+}
+// [Prefs_known_good] Handle 3D color picker button clicks - update both preview and 3D view
+void Preferences::onColor3DPickerClicked(int row, RenderColor colorKey, const QString& schemeName,
+                                         const QColor& initialColor)
+{
+  const QColor newColor = QColorDialog::getColor(initialColor, this, tr("Select color"));
+  if (!newColor.isValid()) return;
+
+  // Update the preview cell background immediately
+  if (auto *cell = tableWidget3DColors->cellWidget(row, 1)) {
+    cell->setStyleSheet(QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;")
+                          .arg(newColor.red())
+                          .arg(newColor.green())
+                          .arg(newColor.blue()));
+  }
+  if (auto *btn = qobject_cast<QPushButton *>(tableWidget3DColors->cellWidget(row, 2))) {
+    btn->setStyleSheet(QString("background: rgb(%1,%2,%3);")
+                         .arg(newColor.red())
+                         .arg(newColor.green())
+                         .arg(newColor.blue()));
+  }
+
+  // Apply a session override so renders use the new color without mutating scheme files
+  Color4f newColorValue(newColor.redF(), newColor.greenF(), newColor.blueF(), 1.0f);
+  RenderSettings::inst()->setColorOverride(colorKey, newColorValue);
+  emit requestRedraw();
 }

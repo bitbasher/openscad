@@ -6,6 +6,8 @@
 #include "core/enums.h"
 #include "core/Selection.h"
 
+#include <cstdint>
+
 #ifdef _MSC_VER  // NULL
 #include <map>
 #include <cstdlib>
@@ -68,7 +70,10 @@ public:
                                                       int mouse_x, int mouse_y, double tolerance);
 
 protected:
+  void refreshColorSchemeIfDirty();
+
   std::map<ColorMode, Color4f> colormap_;
   const ColorScheme *colorscheme_{nullptr};
+  std::uint64_t color_override_revision_{0};
   void setupShader();
 };

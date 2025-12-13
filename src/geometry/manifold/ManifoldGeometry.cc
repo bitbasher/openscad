@@ -113,45 +113,31 @@ std::shared_ptr<PolySet> ManifoldGeometry::toPolySet() const
     ps->vertices.emplace_back(mesh.vertProperties[i], mesh.vertProperties[i + 1],
                               mesh.vertProperties[i + 2]);
 
-  ps->colors.reserve(originalIDToColor_.size());
   ps->color_indices.reserve(ps->indices.size());
 
-  auto colorScheme = ColorMap::inst()->findColorScheme(RenderSettings::inst()->colorscheme);
-  int32_t faceFrontColorIndex = -1;
-  int32_t faceBackColorIndex = -1;
+  // NOTE: Do NOT pre-assign colors to ps->colors here. This would embed colors
+  // at evaluation time, preventing live scheme/override changes from affecting
+  // the render. Instead, let PolySetRenderer apply current scheme colors
+  // (including session overrides from Preferences) at render time.
+  // This enables live color editing in the Preferences dialog for F6 renders.
+  //
+  // Script-provided colors (from color=[...]) are stored in originalIDToColor_
+  // and handled by getColorIndex below. Scheme colors (CGAL_FACE_FRONT/BACK)
+  // are applied by the renderer.
 
   std::map<Color4f, int32_t> colorToIndex;
   std::map<uint32_t, int32_t> originalIDToColorIndex;
 
-  auto getFaceFrontColorIndex = [&]() -> int {
-    if (faceFrontColorIndex < 0) {
-      faceFrontColorIndex = ps->colors.size();
-      ps->colors.push_back(ColorMap::getColor(*colorScheme, RenderColor::CGAL_FACE_FRONT_COLOR));
-    }
-    return faceFrontColorIndex;
-  };
-  auto getFaceBackColorIndex = [&]() -> int {
-    if (faceBackColorIndex < 0) {
-      faceBackColorIndex = ps->colors.size();
-      ps->colors.push_back(ColorMap::getColor(*colorScheme, RenderColor::CGAL_FACE_BACK_COLOR));
-    }
-    return faceBackColorIndex;
-  };
-
   auto getColorIndex = [&](uint32_t originalID) -> int32_t {
-    if (subtractedIDs_.find(originalID) != subtractedIDs_.end()) {
-      return getFaceBackColorIndex();
-    }
-    auto colorIndexIt = originalIDToColorIndex.find(originalID);
-    if (colorIndexIt != originalIDToColorIndex.end()) {
-      return colorIndexIt->second;
-    }
+    // Only store script-provided colors (from color=[...] in OpenSCAD)
+    // Scheme colors (CGAL_FACE_FRONT/BACK) are applied by renderer from current scheme
     auto colorIt = originalIDToColor_.find(originalID);
     if (colorIt == originalIDToColor_.end()) {
-      return getFaceFrontColorIndex();
+      // No script color: return -1 so renderer uses scheme colors
+      return -1;
     }
-    const auto& color = colorIt->second;
 
+    const auto& color = colorIt->second;
     auto pair = colorToIndex.insert({color, ps->colors.size()});
     if (pair.second) {
       ps->colors.push_back(color);
@@ -171,6 +157,12 @@ std::shared_ptr<PolySet> ManifoldGeometry::toPolySet() const
     }
 
     auto colorIndex = getColorIndex(id);
+    if (colorIndex < 0) {
+      // Mark subtracted (difference) faces so renderer can apply CUTOUT color
+      if (subtractedIDs_.find(id) != subtractedIDs_.end()) {
+        colorIndex = -2;  // special sentinel for cutout/back faces
+      }
+    }
     for (size_t i = start; i < end; i += 3) {
       ps->indices.push_back({static_cast<int>(mesh.triVerts[i]), static_cast<int>(mesh.triVerts[i + 1]),
                              static_cast<int>(mesh.triVerts[i + 2])});

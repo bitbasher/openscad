@@ -20,7 +20,10 @@ void Dock::onVisibilityChanged(bool isDockVisible)
 {
   if (updateSettings) {
     QSettingsCached settings;
-    settings.setValue(configKey, !isVisible());
+    // Avoid QSettings empty-key warnings if configKey not initialized yet
+    if (!configKey.isEmpty()) {
+      settings.setValue(configKey, !isVisible());
+    }
   }
 }
 

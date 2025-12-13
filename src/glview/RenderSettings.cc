@@ -41,3 +41,31 @@ RenderSettings::RenderSettings()
   far_gl_clip_limit = 100000.0;
   colorscheme = "Cornfield";
 }
+
+void RenderSettings::setColorOverride(RenderColor rc, const Color4f& color)
+{
+  color_overrides_[rc] = color;
+  Color4f c = color;
+  if (!c.hasAlpha()) c.setAlpha(1.0f);  // Ensure fully opaque when user picks RGB
+  color_overrides_[rc] = c;
+  color_override_revision_++;
+}
+
+void RenderSettings::clearColorOverrides()
+{
+  color_overrides_.clear();
+  color_override_revision_++;
+}
+
+bool RenderSettings::hasColorOverride(RenderColor rc) const
+{
+  return color_overrides_.find(rc) != color_overrides_.end();
+}
+
+std::optional<Color4f> RenderSettings::getColorOverride(RenderColor rc) const
+{
+  if (const auto it = color_overrides_.find(rc); it != color_overrides_.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}

@@ -100,6 +100,8 @@ OpenCSGRenderer::OpenCSGRenderer(std::shared_ptr<CSGProducts> root_products,
 
 void OpenCSGRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 {
+  refreshColorSchemeIfDirty();
+
   if (vertex_state_containers_.empty()) {
     if (root_products_) {
       createCSGVBOProducts(*root_products_, false, false, shaderinfo);
@@ -111,6 +113,12 @@ void OpenCSGRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
       createCSGVBOProducts(*highlights_products_, true, false, shaderinfo);
     }
   }
+}
+
+void OpenCSGRenderer::setColorScheme(const ColorScheme& cs)
+{
+  Renderer::setColorScheme(cs);
+  vertex_state_containers_.clear();
 }
 
 void OpenCSGRenderer::draw(bool showedges, const ShaderUtils::ShaderInfo *shaderinfo) const

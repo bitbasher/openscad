@@ -44,6 +44,7 @@
 #include "geometry/PolySetUtils.h"
 #include "glview/ColorMap.h"
 #include "glview/Renderer.h"
+#include "glview/RenderSettings.h"
 #include "glview/ShaderUtils.h"
 #include "glview/system-gl.h"
 #include "glview/VBOBuilder.h"
@@ -237,6 +238,19 @@ void CGALRenderer::createPolygonEdgeStates()
 void CGALRenderer::prepare(const ShaderUtils::ShaderInfo * /*shaderinfo*/)
 {
   PRINTD("prepare()");
+
+  // Check if color overrides have changed and invalidate caches if needed
+  const auto current_rev = RenderSettings::inst()->colorOverrideRevision();
+  if (current_rev != color_override_revision_) {
+#ifdef ENABLE_CGAL
+    this->polyhedrons_.clear();
+#endif
+    vertex_state_containers_.clear();
+    if (colorscheme_) setColorScheme(*colorscheme_);
+  }
+
+  refreshColorSchemeIfDirty();
+
   if (!vertex_state_containers_.size()) {
     if (!this->polysets_.empty() && !this->polygons_.empty()) {
       LOG(message_group::Error, "CGALRenderer::prepare() called with both polysets and polygons");

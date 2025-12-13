@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <map>
 #include <optional>
 #include <string>
+#include "glview/ColorMap.h"
 
 enum class RenderBackend3D {
   UnknownBackend,
@@ -24,6 +27,16 @@ public:
   double far_gl_clip_limit;
   std::string colorscheme;
 
+  // Per-session color overrides applied on top of the active scheme
+  void setColorOverride(RenderColor rc, const Color4f& color);
+  void clearColorOverrides();
+  bool hasColorOverride(RenderColor rc) const;
+  std::optional<Color4f> getColorOverride(RenderColor rc) const;
+  std::uint64_t colorOverrideRevision() const { return color_override_revision_; }
+
 private:
   RenderSettings();
+
+  std::map<RenderColor, Color4f> color_overrides_;
+  std::uint64_t color_override_revision_{0};
 };
