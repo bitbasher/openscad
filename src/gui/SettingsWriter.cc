@@ -34,6 +34,10 @@ void SettingsWriter::handle(Settings::SettingsEntryBase& entry) const
 {
   QSettingsCached settings;
   std::string key = entry.category() + "/" + entry.name();
+  if (key.empty()) {
+    // [Prefs_known_good] Skip empty keys to avoid QSettings warnings
+    return;
+  }
   if (entry.isDefault()) {
     settings.remove(QString::fromStdString(key));
     PRINTDB("SettingsWriter D: %s", key.c_str());

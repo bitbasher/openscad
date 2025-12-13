@@ -383,6 +383,10 @@ class Settings
 public:
   static SettingsEntryBool showWarningsIn3dView;
   static SettingsEntryBool mouseCentricZoom;
+  static SettingsEntryInt showAxes;
+  static SettingsEntryInt showScaleMarkers;
+  static SettingsEntryInt showEdges;
+  static SettingsEntryInt projection;
   static SettingsEntryInt indentationWidth;
   static SettingsEntryInt tabWidth;
   static SettingsEntryEnum<std::string> lineWrap;

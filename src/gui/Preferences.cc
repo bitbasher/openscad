@@ -48,7 +48,8 @@
 #include <QKeyEvent>
 #include <QFileDialog>
 #include <QRegularExpression>
-#include "qwwcolorcombobox.h"
+#include <QColorDialog>
+#include <QPushButton>
 #include <QRegularExpressionValidator>
 #include <QStatusBar>
 #include <QSettings>
@@ -228,10 +229,6 @@ void Preferences::init()
 
   // 3D View pane
   this->defaultmap["3dview/colorscheme"] = "Cornfield";
-  this->defaultmap["3dview/showAxes"] = true;
-  this->defaultmap["3dview/showScaleMarkers"] = true;
-  this->defaultmap["3dview/showEdges"] = false;
-  this->defaultmap["3dview/projection"] = "Perspective";
 
   // Editor Color Scheme pane
   this->defaultmap["editor/colorscheme"] = "For Light Background";
@@ -656,29 +653,29 @@ void Preferences::on_checkBoxMouseCentricZoom_toggled(bool val)
 
 void Preferences::on_checkBoxShowAxes_stateChanged(int state)
 {
-  QSettingsCached settings;
   // Qt::Unchecked = 0, Qt::PartiallyChecked = 1, Qt::Checked = 2
   // We save the state as an int: 0 = force off, 1 = use last setting, 2 = force on
-  settings.setValue("3dview/showAxes", state);
+  Settings::Settings::showAxes.setValue(state);
+  writeSettings();
 }
 
 void Preferences::on_checkBoxShowScaleMarkers_stateChanged(int state)
 {
-  QSettingsCached settings;
-  settings.setValue("3dview/showScaleMarkers", state);
+  Settings::Settings::showScaleMarkers.setValue(state);
+  writeSettings();
 }
 
 void Preferences::on_checkBoxShowEdges_stateChanged(int state)
 {
-  QSettingsCached settings;
-  settings.setValue("3dview/showEdges", state);
+  Settings::Settings::showEdges.setValue(state);
+  writeSettings();
 }
 
 void Preferences::on_comboBoxProjection_activated(int index)
 {
-  QSettingsCached settings;
   // Index: 0 = Don't Force, 1 = Perspective, 2 = Orthogonal
-  settings.setValue("3dview/projection", index);
+  Settings::Settings::projection.setValue(index);
+  writeSettings();
 }
 
 void Preferences::on_spinBoxIndentationWidth_valueChanged(int val)
@@ -1377,16 +1374,14 @@ void Preferences::updateGUI()
   }
 
   // Update 3D View Settings controls (tri-state checkboxes)
-  // Default to PartiallyChecked (1) so existing user settings are preserved
-  QSettingsCached settings;
   BlockSignals<QCheckBox *>(this->checkBoxShowAxes)
-    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showAxes", 1).toInt()));
+    ->setCheckState(static_cast<Qt::CheckState>(Settings::Settings::showAxes.value()));
   BlockSignals<QCheckBox *>(this->checkBoxShowScaleMarkers)
-    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showScaleMarkers", 1).toInt()));
+    ->setCheckState(static_cast<Qt::CheckState>(Settings::Settings::showScaleMarkers.value()));
   BlockSignals<QCheckBox *>(this->checkBoxShowEdges)
-    ->setCheckState(static_cast<Qt::CheckState>(settings.value("3dview/showEdges", 1).toInt()));
+    ->setCheckState(static_cast<Qt::CheckState>(Settings::Settings::showEdges.value()));
 
-  int projectionIndex = settings.value("3dview/projection", 0).toInt();  // Default to Don't Force
+  int projectionIndex = Settings::Settings::projection.value();  // 0 = Don't Force
   BlockSignals<QComboBox *>(this->comboBoxProjection)->setCurrentIndex(projectionIndex);
 
   updateGUIFontFamily(fontChooser, "editor/fontfamily");
@@ -1665,18 +1660,29 @@ void Preferences::populate3DColorTable(const QString& schemeName)
       QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;").arg(r).arg(g).arg(b));
     tableWidget3DColors->setCellWidget(row, 1, rgbLabel);
 
-    // Color picker column - QwwColorComboBox
-    QwwColorComboBox *colorCombo = new QwwColorComboBox();
-    colorCombo->setStandardColors();
-    colorCombo->setCurrentColor(qcolor);
-    colorCombo->setColorDialogEnabled(true);
+    // Color picker column - simple button with QColorDialog
+    QPushButton *colorButton = new QPushButton(tr("Pick…"));
+    colorButton->setStyleSheet(QString("background: rgb(%1,%2,%3);").arg(r).arg(g).arg(b));
+    connect(colorButton, &QPushButton::clicked, this, [this, qcolor, row]() {
+      const QColor newColor = QColorDialog::getColor(qcolor, this, tr("Select color"));
+      if (!newColor.isValid()) return;
+      // Update the preview cell background immediately
+      if (auto *cell = tableWidget3DColors->cellWidget(row, 1)) {
+        cell->setStyleSheet(QString("border: 3px solid rgb(%1,%2,%3); background: white; padding: 2px;")
+                              .arg(newColor.red())
+                              .arg(newColor.green())
+                              .arg(newColor.blue()));
+      }
+      if (auto *btn = qobject_cast<QPushButton *>(tableWidget3DColors->cellWidget(row, 2))) {
+        btn->setStyleSheet(QString("background: rgb(%1,%2,%3);")
+                             .arg(newColor.red())
+                             .arg(newColor.green())
+                             .arg(newColor.blue()));
+      }
+      // TODO: propagate color change into the scheme and persist
+    });
 
-    // TODO: Connect signal to update color scheme when changed
-    // connect(colorCombo, &QwwColorComboBox::activated, [this, row](const QColor &newColor) {
-    //   // Update color scheme and refresh preview
-    // });
-
-    tableWidget3DColors->setCellWidget(row, 2, colorCombo);
+    tableWidget3DColors->setCellWidget(row, 2, colorButton);
 
     row++;
   }

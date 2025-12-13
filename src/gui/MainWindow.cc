@@ -1009,9 +1009,9 @@ void MainWindow::loadViewSettings()
 
   // Check preferences for forced states (tri-state checkboxes)
   // State: 0 = force off, 1 = use last user setting (PartiallyChecked), 2 = force on
-  int axesPref = settings.value("3dview/showAxes", 1).toInt();  // Default to PartiallyChecked
-  int scaleMarkersPref = settings.value("3dview/showScaleMarkers", 1).toInt();
-  int edgesPref = settings.value("3dview/showEdges", 1).toInt();
+  int axesPref = Settings::Settings::showAxes.value();
+  int scaleMarkersPref = Settings::Settings::showScaleMarkers.value();
+  int edgesPref = Settings::Settings::showEdges.value();
 
   // Show Edges: respect preference override or use last user setting
   if (edgesPref == 2 || (edgesPref == 1 && settings.value("view/showEdges").toBool())) {
@@ -1045,7 +1045,7 @@ void MainWindow::loadViewSettings()
 
   // Projection: respect preference override or use last user setting
   // Index: 0 = Don't Force, 1 = Force Perspective, 2 = Force Orthogonal
-  int projectionPref = settings.value("3dview/projection", 0).toInt();
+  int projectionPref = Settings::Settings::projection.value();
   if (projectionPref == 2 ||
       (projectionPref == 0 && settings.value("view/orthogonalProjection").toBool())) {
     viewOrthogonal();
