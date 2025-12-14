@@ -191,7 +191,10 @@ void TabManager::createTab(const QString& filename)
   connect(scintillaEditor, &ScintillaEditor::uriDropped, par, &MainWindow::handleFileDrop);
   connect(scintillaEditor, &ScintillaEditor::previewRequest, par, &MainWindow::actionRenderPreview);
   connect(editor, &EditorInterface::showContextMenuEvent, this, &TabManager::showContextMenuEvent);
-  connect(editor, &EditorInterface::focusIn, this, [this]() { par->setLastFocus(editor); });
+  connect(editor, &EditorInterface::focusIn, this, [this]() {
+    par->setLastFocus(editor);
+    GlobalPreferences::inst()->setLastFocusedEditor(editor);
+  });
 
   connect(GlobalPreferences::inst(), &Preferences::editorConfigChanged, scintillaEditor,
           &ScintillaEditor::applySettings);
@@ -210,8 +213,14 @@ void TabManager::createTab(const QString& filename)
           [editor = this->editor, this] { onTabModified(editor); });
 
   connect(GlobalPreferences::inst(), &Preferences::fontChanged, editor, &EditorInterface::initFont);
+  EditorInterface *currentEditor = editor;  // capture the specific editor instance created here
   connect(GlobalPreferences::inst(), &Preferences::syntaxHighlightChanged, editor,
-          &EditorInterface::setHighlightScheme);
+          [currentEditor](const QString& scheme) {
+            if (!currentEditor) return;
+            if (GlobalPreferences::inst()->lastFocusedEditor() == currentEditor) {
+              currentEditor->setHighlightScheme(scheme);
+            }
+          });
   editor->initFont(GlobalPreferences::inst()->getValue("editor/fontfamily").toString(),
                    GlobalPreferences::inst()->getValue("editor/fontsize").toUInt());
   editor->setHighlightScheme(GlobalPreferences::inst()->getValue("editor/syntaxhighlight").toString());

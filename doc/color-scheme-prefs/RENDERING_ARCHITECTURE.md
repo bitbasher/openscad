@@ -37,7 +37,7 @@ Color schemes are loaded from JSON files and applied at VBO creation time, makin
 
 #### 1. Preferences Class Hierarchy
 
-```
+```text
 QDialog (Qt base)
     └── Preferences (src/gui/Preferences.h/cc)
         └── GlobalPreferences singleton accessor
@@ -52,6 +52,7 @@ Constructor:
 #### 2. Color Scheme Management Classes
 
 **ColorMap** (`src/glview/ColorMap.h/cc`)
+
 - Singleton managing all color schemes
 - Enumerates schemes from disk (`color-schemes/render/*.json`)
 - Default scheme: "Cornfield"
@@ -61,6 +62,7 @@ Constructor:
   - `getColor(scheme, RenderColor)` → Static color lookup with override support
 
 **RenderColorScheme** (`src/glview/ColorMap.h`)
+
 ```cpp
 class RenderColorScheme {
   std::string _name;
@@ -73,11 +75,13 @@ class RenderColorScheme {
 ```
 
 **ColorScheme Type**
+
 ```cpp
 using ColorScheme = std::map<RenderColor, Color4f>;
 ```
 
 **RenderColor Enum** (partial)
+
 ```cpp
 enum class RenderColor {
   BACKGROUND_COLOR,
@@ -96,7 +100,7 @@ enum class RenderColor {
 
 The 3D Colors tab (`src/gui/Preferences.cc`, populated in `populate3DColorTable()`):
 
-```
+```text
 QComboBox: combo3DColorScheme
     ├─ Populated from ColorMap::colorSchemeNames()
     └─ Signal: currentIndexChanged → on3DColorSchemeChanged()
@@ -118,6 +122,7 @@ QGroupBox: groupBox3DMetadata
 #### 4. Key Signal/Slot Connections
 
 **In Preferences Constructor:**
+
 ```cpp
 // Scheme chooser changed
 connect(combo3DColorScheme, QOverload<int>::of(&QComboBox::currentIndexChanged),
@@ -131,6 +136,7 @@ connect(colorButton, &QPushButton::clicked, this,
 ```
 
 **In MainWindow Constructor (`src/gui/MainWindow.cc:597`):**
+
 ```cpp
 // Preferences signals to GLView
 connect(GlobalPreferences::inst(), &Preferences::requestRedraw,
@@ -141,7 +147,8 @@ connect(GlobalPreferences::inst(), &Preferences::colorSchemeChanged,
 ```
 
 **Signal Chain for Scheme Switch:**
-```
+
+```text
 User selects scheme in combo → currentIndexChanged
     → Preferences::on3DColorSchemeChanged()
         → populate3DColorTable(newScheme)
@@ -162,7 +169,7 @@ User selects scheme in combo → currentIndexChanged
 
 ### Renderer Class Hierarchy
 
-```
+```text
 Renderer (abstract base, src/glview/Renderer.h/cc)
     ├─ colormap_: map<ColorMode, Color4f>
     ├─ colorscheme_: const ColorScheme*
@@ -226,7 +233,7 @@ enum class ColorMode {
 
 #### 1. OpenCSG Preview (F5)
 
-```
+```text
 User edits → F5 → MainWindow::actionRenderPreview()
     → CSGTreeEvaluator builds tree
     → OpenCSGRenderer created with CSGProducts
@@ -257,7 +264,8 @@ User edits → F5 → MainWindow::actionRenderPreview()
 #### 2. Manifold Render (F6) - UPDATED
 
 **OLD BEHAVIOR (Before Live Color Edit Fix):**
-```
+
+```text
 User → F6 → MainWindow::actionRender()
     → GeometryEvaluator builds geometry
     → ManifoldGeometry::toPolySet()
@@ -269,7 +277,8 @@ User → F6 → MainWindow::actionRender()
 ```
 
 **NEW BEHAVIOR (With Live Color Edit Fix + Alpha Override Fix):**
-```
+
+```text
 User → F6 → MainWindow::actionRender()
     → GeometryEvaluator builds geometry
     → ManifoldGeometry::toPolySet()
@@ -292,13 +301,14 @@ User → F6 → MainWindow::actionRender()
 Scheme colors (CGAL_FACE_FRONT/BACK) are applied by `PolySetRenderer` at render time, enabling live updates.
 
   **Bug Discovered and Fixed (Faces Disappearing on Color Change):**
-  - Root cause: Color overrides created from the Preferences picker had undefined alpha (`alpha = -1`), so applying an override could zero out face visibility.
-  - Fix: `RenderSettings::setColorOverride` now forces `alpha = 1.0` if missing; Preferences passes RGBA with alpha=1.0 when setting overrides.
-  - Impact: Changing “CGAL Face Front/Back” no longer makes faces disappear; edges remain visible and unaffected.
+
+- Root cause: Color overrides created from the Preferences picker had undefined alpha (`alpha = -1`), so applying an override could zero out face visibility.
+- Fix: `RenderSettings::setColorOverride` now forces `alpha = 1.0` if missing; Preferences passes RGBA with alpha=1.0 when setting overrides.
+- Impact: Changing “CGAL Face Front/Back” no longer makes faces disappear; edges remain visible and unaffected.
 
 #### 3. CGAL Render (F6)
 
-```
+```text
 Similar to Manifold but:
     → CGALUtils::createPolySetFromGeometry()
     → CGALRenderer::prepare()
@@ -311,6 +321,7 @@ Similar to Manifold but:
 ### VBO (Vertex Buffer Object) Architecture
 
 **VertexState** (`src/glview/VertexState.h`)
+
 - Encapsulates GL state and draw call
 - Holds VBO/EBO handles
 - `glBegin()`: vector of setup lambdas (enable arrays, bind buffers)
@@ -318,6 +329,7 @@ Similar to Manifold but:
 - `draw()`: execute begin → glDrawArrays/Elements → execute end
 
 **VBOBuilder** (`src/glview/VBOBuilder.h/cc`)
+
 - Helper for creating vertex data
 - Methods:
   - `addSurfaceData()`: position, normal, color attributes
@@ -326,6 +338,7 @@ Similar to Manifold but:
   - `createInterleavedVBOs()`: upload to GPU, create VertexState objects
 
 **VertexStateContainer**
+
 - Manages lifetime of VBOs
 - `states()`: vector of VertexState shared_ptrs
 - Destroyed when renderer is recreated
@@ -336,7 +349,7 @@ Similar to Manifold but:
 
 ### Initial Application Startup
 
-```
+```text
 main()
     → MainWindow constructor
         → GlobalPreferences::inst()->apply_win()
@@ -348,7 +361,7 @@ main()
 
 ### User Changes Scheme in Preferences
 
-```
+```text
 Preferences Dialog → combo3DColorScheme changed
     → on3DColorSchemeChanged(index)
         ├─ schemeName = combo->itemText(index)
@@ -398,6 +411,7 @@ Color4f ColorMap::getColor(const ColorScheme& cs, const RenderColor rc)
 ```
 
 This static method is called from:
+
 - Renderer::setColorScheme() (sets colormap_)
 - OpenCSGRenderer::createCSGVBOProducts() (via getShaderColor)
 - PolySetRenderer::createPolySetStates() (via getShaderColor)
@@ -426,22 +440,26 @@ This static method is called from:
 ### Why Existing Code Doesn't Support Live Edits
 
 **Problem 1: VBO Color Baking**
+
 - Colors are written into VBO buffers at creation time
 - VBOs stay in GPU memory until explicitly destroyed
 - Changing ColorMap has no effect on existing VBOs
 
 **Problem 2: Renderer Lifecycle**
+
 - Renderers created per-render operation
 - OpenCSGRenderer: created on F5, lives until next F5 or F6
 - PolySetRenderer: created on F6, lives until next F5 or F6
 - No mechanism to invalidate cached geometry
 
 **Problem 3: Scheme File Immutability**
+
 - RenderColorScheme loaded from disk JSON
 - No in-memory mutation without saving files
 - Multiple scheme instances would conflict
 
 **Problem 4: Signal Chain Incomplete**
+
 - No signal from Preferences to trigger VBO rebuild
 - `requestRedraw` signal exists but only calls `QGLView::update()`
 - `update()` → `paintGL()` → `renderer->draw()` (no prepare, uses cached VBOs)
@@ -449,6 +467,7 @@ This static method is called from:
 ### Failed Approach: Direct Scheme Mutation
 
 Initial attempt (caused corruption):
+
 ```cpp
 // In onColor3DPickerClicked
 RenderColorScheme* scheme = const_cast<RenderColorScheme*>(
@@ -459,6 +478,7 @@ emit requestRedraw();
 ```
 
 **Why This Failed:**
+
 - Mutated the shared ColorScheme map
 - VBOs already created with old colors
 - Only new geometry (next F5/F6) would show new colors
@@ -472,21 +492,25 @@ emit requestRedraw();
 ### Design Philosophy
 
 **Principle 1: Preserve Immutability**
+
 - Scheme files remain unchanged on disk
 - ColorMap scheme objects never mutated
 - Edits are session-only (lost on restart)
 
 **Principle 2: Transparent Override Layer**
+
 - `ColorMap::getColor()` checks override first
 - All existing code paths automatically pick up overrides
 - No changes to renderer color lookup logic
 
 **Principle 3: VBO Invalidation via Revision**
+
 - Track when overrides change with revision counter
 - Renderers check revision, invalidate cached VBOs if stale
 - Next `prepare()` rebuilds VBOs with new colors
 
 **Principle 4: Automatic Refresh**
+
 - `requestRedraw` signal triggers `QGLView::update()`
 - Renderers check revision in `prepare()` (called even for cached state)
 - Stale VBOs cleared, forcing rebuild
@@ -619,6 +643,7 @@ void OpenCSGRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 ```
 
 **Similar changes in:**
+
 - `PolySetRenderer::setColorScheme()` / `prepare()`
 - `ThrownTogetherRenderer::setColorScheme()` / `prepare()`
 - `CGALRenderer::prepare()` (no setColorScheme override needed, uses base)
@@ -628,6 +653,7 @@ void OpenCSGRenderer::prepare(const ShaderUtils::ShaderInfo *shaderinfo)
 **File:** `src/gui/Preferences.cc`
 
 **When User Switches Schemes:**
+
 ```cpp
 void Preferences::populate3DColorTable(const QString& schemeName)
 {
@@ -646,6 +672,7 @@ void Preferences::populate3DColorTable(const QString& schemeName)
 ```
 
 **When User Edits a Color:**
+
 ```cpp
 void Preferences::onColor3DPickerClicked(int row, RenderColor colorKey,
                                          const QString& schemeName,
@@ -775,6 +802,7 @@ auto getColorIndex = [&](uint32_t originalID) -> int32_t {
 ### Files Modified
 
 #### Core Override System
+
 1. **src/glview/RenderSettings.h**
    - Added `color_overrides_` map
    - Added `color_override_revision_` counter
@@ -787,6 +815,7 @@ auto getColorIndex = [&](uint32_t originalID) -> int32_t {
    - Modified `getColor()` to check overrides first
 
 #### Renderer Base Infrastructure
+
 4. **src/glview/Renderer.h**
    - Added `color_override_revision_` tracking
    - Added `refreshColorSchemeIfDirty()` method
@@ -796,6 +825,7 @@ auto getColorIndex = [&](uint32_t originalID) -> int32_t {
    - Implemented `refreshColorSchemeIfDirty()`
 
 #### Renderer Subclasses (VBO Invalidation)
+
 6. **src/glview/PolySetRenderer.cc**
    - Clear cached containers in `setColorScheme()`
    - Call `refreshColorSchemeIfDirty()` in `prepare()`
@@ -812,13 +842,14 @@ auto getColorIndex = [&](uint32_t originalID) -> int32_t {
    - Call `refreshColorSchemeIfDirty()` in `prepare()`
 
 #### Preferences Integration
+
 10. **src/gui/Preferences.cc**
     - Clear overrides in `populate3DColorTable()` (scheme switch)
     - Set override and emit `requestRedraw` in `onColor3DPickerClicked()`
 
 ### Revision-Based Invalidation Flow
 
-```
+```text
 User clicks color picker
     → QColorDialog opens
     → User selects new color
@@ -849,16 +880,19 @@ User clicks color picker
 ### Why This Works
 
 **Automatic Propagation:**
+
 - Every renderer calls `ColorMap::getColor()` during VBO creation
 - `getColor()` checks overrides first
 - No changes needed to individual color lookup sites
 
 **Performance:**
+
 - Revision check is O(1) comparison
 - VBO rebuild only happens when colors change
 - Normal redraws (rotate, zoom) use cached VBOs
 
 **Correctness:**
+
 - Clearing overrides on scheme switch prevents stale edits
 - Revision ensures no missed updates
 - All renderers (OpenCSG, Manifold, CGAL) treated uniformly
@@ -869,15 +903,18 @@ User clicks color picker
 
 **Current Behavior:**
 OpenSCAD scripts can set object colors using `color([R, G, B, A])`:
+
 ```scad
 color([1, 0, 0])
   cube([10, 10, 10]);
 ```
 
 These colors appear correctly in:
+
 - **F5 OpenCSG Preview** ✓ (colors rendered as specified)
 
 But NOT in F6 renders:
+
 - **F6 Manifold Render** ✗ (uses scheme color, ignores script color)
 - **F6 CGAL Render** ✗ (uses scheme color, ignores script color)
 
@@ -896,6 +933,7 @@ ps->colors.push_back(colorIt->second);
 ```
 
 The renderer (`PolySetRenderer`) checks `polyset->colors` and uses it if available. The issue is that script colors are either:
+
 1. Not stored in `ps->colors` (current implementation)
 2. Or stored but then overridden by the scheme color lookup
 
@@ -904,6 +942,7 @@ The renderer (`PolySetRenderer`) checks `polyset->colors` and uses it if availab
 To enable script colors in F6 renders:
 
 1. **In ManifoldGeometry::toPolySet():**
+
    ```cpp
    // Store script colors per-polygon in color_indices
    ps->color_indices.reserve(ps->indices.size());
@@ -925,6 +964,7 @@ To enable script colors in F6 renders:
    ```
 
 2. **In PolySetRenderer::createPolySetStates():**
+
    ```cpp
    // Per-polygon coloring instead of uniform
    for (size_t i = 0; i < polyset->indices.size(); ++i) {
@@ -952,6 +992,7 @@ To enable script colors in F6 renders:
 
 4. **Alternative: Per-Object Colors (Simpler)**
    If per-polygon is complex, use per-object approach:
+
    ```cpp
    // Store "overall object color" from first script color encountered
    if (!originalIDToColor_.empty()) {
@@ -1103,6 +1144,7 @@ Edge rendering differs significantly between the CGAL and Manifold backends:
 #### CGAL Backend (F6 with CGAL)
 
 **Architecture:**
+
 - Uses `VBOPolyhedron` class (src/glview/cgal/VBOPolyhedron.h)
 - Explicit edge rendering via `draw(Edge_iterator)` method
 - Edge colors set at polyhedron construction time
@@ -1111,6 +1153,7 @@ Edge rendering differs significantly between the CGAL and Manifold backends:
   - `UNMARKED_EDGE_COLOR` → mapped to `CGAL_EDGE_FRONT_COLOR`
 
 **VBOPolyhedron Constructor:**
+
 ```cpp
 VBOPolyhedron(const ColorScheme& cs) {
   setColor(CGALColorIndex::MARKED_EDGE_COLOR,
@@ -1121,6 +1164,7 @@ VBOPolyhedron(const ColorScheme& cs) {
 ```
 
 **Edge Drawing:**
+
 ```cpp
 void draw(Edge_iterator e, VBOBuilder& vbo_builder) const {
   const Double_point p = e->source(), q = e->target();
@@ -1132,24 +1176,28 @@ void draw(Edge_iterator e, VBOBuilder& vbo_builder) const {
 ```
 
 **Override Support:**
+
 - ✅ **FIXED:** CGALRenderer now detects override revision changes in `prepare()`
 - Clears `polyhedrons_` cache when overrides change
 - Recreates VBOPolyhedrons with new colors via ColorMap::getColor()
 - Edge colors update immediately when CGAL_EDGE_FRONT/BACK overrides are set
 
 **Code Location:**
+
 - src/glview/cgal/CGALRenderer.cc (prepare method)
 - src/glview/cgal/VBOPolyhedron.h (constructor and draw)
 
 #### Manifold Backend (F6 with Manifold)
 
 **Architecture:**
+
 - Uses `PolySetRenderer` class (src/glview/PolySetRenderer.cc)
 - **Shader-based edge rendering** via ViewEdges.frag/vert
 - No explicit edge geometry creation
 - Edge colors are **derived from face colors** by the shader
 
 **Edge Shader Algorithm (shaders/ViewEdges.frag):**
+
 ```glsl
 void main(void) {
   // Lighten the face color for edges
@@ -1162,17 +1210,20 @@ void main(void) {
 
 **Key Insight:**
 The shader receives only the **face color** and automatically generates edge color by:
+
 1. Adding vec3(1) to face RGB (lightens color)
 2. Dividing by 2 (brings back to [0,1] range)
 3. Mixing with face color based on proximity to edge (barycentric interpolation)
 
 **Current Limitation:**
+
 - ❌ **EDGE OVERRIDES NOT SUPPORTED:** CGAL_EDGE_FRONT_COLOR and CGAL_EDGE_BACK_COLOR preferences have no effect
 - Edge colors are always auto-derived from face colors
 - No separate edge color uniform passed to shader
 - No way to independently control edge colors via preferences
 
 **Visual Effect:**
+
 - Front face edges: Automatically lightened version of CGAL_FACE_FRONT_COLOR
 - Back face edges: Automatically lightened version of CGAL_FACE_BACK_COLOR
 - User cannot override edge colors independently
@@ -1180,6 +1231,7 @@ The shader receives only the **face color** and automatically generates edge col
 ### Problem Statement
 
 Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to control edge colors in both CGAL and Manifold backends. Currently:
+
 - ✅ CGAL backend: Edge colors respect overrides (after fix)
 - ❌ Manifold backend: Edge colors ignore overrides (auto-derived from face colors)
 
@@ -1201,6 +1253,7 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
 
 3. **Update PolySetRenderer:**
    - Set shader uniforms in `drawPolySets()` method:
+
      ```cpp
      if (enable_shader) {
        Color4f edgeFront, edgeBack;
@@ -1212,6 +1265,7 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
      ```
 
 4. **Update Fragment Shader Logic:**
+
    ```glsl
    uniform vec4 edgeColorFront;
    uniform vec4 edgeColorBack;
@@ -1232,12 +1286,14 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
    - Update shader attribute binding in VBOUtils
 
 **Advantages:**
+
 - ✅ User gets full control over edge colors
 - ✅ Consistent behavior across CGAL and Manifold backends
 - ✅ Preferences CGAL_EDGE_FRONT/BACK become functional
 - ✅ Overrides work immediately with existing revision tracking
 
 **Disadvantages:**
+
 - More complex shader
 - Additional per-vertex data (1 float per vertex)
 - Requires VBO rebuild when edge colors change (already handled by revision tracking)
@@ -1260,10 +1316,12 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
    - Show explanatory tooltip
 
 **Advantages:**
+
 - ✅ No code changes to rendering pipeline
 - ✅ Zero risk of regression
 
 **Disadvantages:**
+
 - ❌ Inconsistent user experience between backends
 - ❌ Preferences UI has non-functional controls
 - ❌ User cannot achieve desired visual style with Manifold
@@ -1277,6 +1335,7 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
 **Implement Case 1** (Modify Shader for Explicit Edge Colors)
 
 **Reasoning:**
+
 1. Users expect color preferences to work consistently
 2. Shader modification is straightforward and low-risk
 3. Existing revision tracking infrastructure handles cache invalidation
@@ -1284,6 +1343,7 @@ Users expect `CGAL_EDGE_FRONT_COLOR` and `CGAL_EDGE_BACK_COLOR` preferences to c
 5. Opens door for future edge styling features (thickness, style, etc.)
 
 **Next Steps:**
+
 1. Commit current state with tag "faceColorPrefsKnownGood"
 2. Implement shader modifications for explicit edge colors
 3. Test with both CGAL and Manifold backends

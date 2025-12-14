@@ -608,6 +608,17 @@ MainWindow::MainWindow(const QStringList& filenames) : rubberBandManager(this)
           &MainWindow::openCSGSettingsChanged);
   connect(GlobalPreferences::inst(), &Preferences::colorSchemeChanged, this,
           &MainWindow::setColorScheme);
+  // Live editor color updates from Preferences (preview + targeted editor)
+  connect(GlobalPreferences::inst(), &Preferences::editorColorChanged, this,
+          [this](const QString& keyPath, const QColor& color) {
+            EditorInterface *target = GlobalPreferences::inst()->lastFocusedEditor();
+            if (!target) return;
+            // Only apply if the target editor belongs to this window
+            if (target->window() != this) return;
+            if (auto *se = dynamic_cast<ScintillaEditor *>(target)) {
+              se->applyTemporaryColor(keyPath, color);
+            }
+          });
   connect(GlobalPreferences::inst(), &Preferences::toolbarExportChanged, this,
           &MainWindow::updateExportActions);
 

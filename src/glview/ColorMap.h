@@ -61,9 +61,9 @@ public:
   [[nodiscard]] bool showInGui() const;
   ColorScheme& colorScheme();
   [[nodiscard]] const boost::property_tree::ptree& propertyTree() const;
+  [[nodiscard]] std::string path() const;
 
 private:
-  [[nodiscard]] std::string path() const;
   [[nodiscard]] std::string error() const;
   void addColor(RenderColor colorKey, const std::string& key);
 

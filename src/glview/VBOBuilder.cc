@@ -344,6 +344,8 @@ void VBOBuilder::addShaderData()
   shader_attributes_index_ = vertex_data->attributes().size();
   vertex_data->addAttributeData(
     std::make_shared<AttributeData<GLubyte, 4, GL_UNSIGNED_BYTE>>());  // barycentric
+  vertex_data->addAttributeData(std::make_shared<AttributeData<GLfloat, 1, GL_FLOAT>>());  // isCutout
+  has_shader_attributes_ = true;
 }
 
 void VBOBuilder::add_barycentric_attribute(size_t active_point_index, size_t primitive_index,
@@ -385,8 +387,9 @@ void VBOBuilder::add_barycentric_attribute(size_t active_point_index, size_t pri
 
 void VBOBuilder::create_triangle(const Color4f& color, const Vector3d& p0, const Vector3d& p1,
                                  const Vector3d& p2, size_t primitive_index, size_t shape_size,
-                                 bool outlines, bool enable_barycentric, bool mirror)
+                                 bool outlines, bool enable_barycentric, bool mirror, bool is_cutout)
 {
+  const std::shared_ptr<VertexData> vertex_data = data();
   const double ax = p1[0] - p0[0], bx = p1[0] - p2[0];
   const double ay = p1[1] - p0[1], by = p1[1] - p2[1];
   const double az = p1[2] - p0[2], bz = p1[2] - p2[2];
@@ -400,22 +403,42 @@ void VBOBuilder::create_triangle(const Color4f& color, const Vector3d& p0, const
 
   if (enable_barycentric) {
     add_barycentric_attribute(0, primitive_index, shape_size, outlines);
+    if (has_shader_attributes_) {
+      // Add cutout flag attribute - only if shader attributes were allocated
+      addAttributeValues(*(vertex_data->attributes()[shader_attributes_index_ + CUTOUT_ATTRIB]),
+                         is_cutout ? 1.0f : 0.0f);
+    }
   }
   createVertex({p0, p1, p2}, {n, n, n}, color, 0, primitive_index, shape_size, outlines, mirror);
 
   if (!mirror) {
     if (enable_barycentric) {
       add_barycentric_attribute(1, primitive_index, shape_size, outlines);
+      if (has_shader_attributes_) {
+        // Add cutout flag attribute - only if shader attributes were allocated
+        addAttributeValues(*(vertex_data->attributes()[shader_attributes_index_ + CUTOUT_ATTRIB]),
+                           is_cutout ? 1.0f : 0.0f);
+      }
     }
     createVertex({p0, p1, p2}, {n, n, n}, color, 1, primitive_index, shape_size, outlines, mirror);
   }
   if (enable_barycentric) {
     add_barycentric_attribute(2, primitive_index, shape_size, outlines);
+    if (has_shader_attributes_) {
+      // Add cutout flag attribute - only if shader attributes were allocated
+      addAttributeValues(*(vertex_data->attributes()[shader_attributes_index_ + CUTOUT_ATTRIB]),
+                         is_cutout ? 1.0f : 0.0f);
+    }
   }
   createVertex({p0, p1, p2}, {n, n, n}, color, 2, primitive_index, shape_size, outlines, mirror);
   if (mirror) {
     if (enable_barycentric) {
       add_barycentric_attribute(1, primitive_index, shape_size, outlines);
+      if (has_shader_attributes_) {
+        // Add cutout flag attribute - only if shader attributes were allocated
+        addAttributeValues(*(vertex_data->attributes()[shader_attributes_index_ + CUTOUT_ATTRIB]),
+                           is_cutout ? 1.0f : 0.0f);
+      }
     }
     createVertex({p0, p1, p2}, {n, n, n}, color, 1, primitive_index, shape_size, outlines, mirror);
   }
@@ -425,7 +448,7 @@ void VBOBuilder::create_triangle(const Color4f& color, const Vector3d& p0, const
 // This will usually create a new VertexState and append it to our
 // vertex states
 void VBOBuilder::create_surface(const PolySet& ps, const Transform3d& m, const Color4f& default_color,
-                                bool enable_barycentric, bool force_default_color)
+                                bool enable_barycentric, bool force_default_color, bool is_cutout)
 {
   const std::shared_ptr<VertexData> vertex_data = data();
 
@@ -459,7 +482,7 @@ void VBOBuilder::create_surface(const PolySet& ps, const Transform3d& m, const C
       const Vector3d p1 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(1)], m);
       const Vector3d p2 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(2)], m);
 
-      create_triangle(color, p0, p1, p2, 0, poly.size(), false, enable_barycentric, mirrored);
+      create_triangle(color, p0, p1, p2, 0, poly.size(), false, enable_barycentric, mirrored, is_cutout);
       triangle_count++;
     } else if (poly.size() == 4) {
       const Vector3d p0 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(0)], m);
@@ -467,8 +490,8 @@ void VBOBuilder::create_surface(const PolySet& ps, const Transform3d& m, const C
       const Vector3d p2 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(2)], m);
       const Vector3d p3 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(3)], m);
 
-      create_triangle(color, p0, p1, p3, 0, poly.size(), false, enable_barycentric, mirrored);
-      create_triangle(color, p2, p3, p1, 1, poly.size(), false, enable_barycentric, mirrored);
+      create_triangle(color, p0, p1, p3, 0, poly.size(), false, enable_barycentric, mirrored, is_cutout);
+      create_triangle(color, p2, p3, p1, 1, poly.size(), false, enable_barycentric, mirrored, is_cutout);
       triangle_count += 2;
     } else {
       Vector3d center = Vector3d::Zero();
@@ -481,7 +504,8 @@ void VBOBuilder::create_surface(const PolySet& ps, const Transform3d& m, const C
         const Vector3d p1 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(i % poly.size())], m);
         const Vector3d p2 = uniqueMultiply(vert_mult_map, ps.vertices[poly.at(i - 1)], m);
 
-        create_triangle(color, p0, p2, p1, i - 1, poly.size(), false, enable_barycentric, mirrored);
+        create_triangle(color, p0, p2, p1, i - 1, poly.size(), false, enable_barycentric, mirrored,
+                        is_cutout);
         triangle_count++;
       }
     }

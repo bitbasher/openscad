@@ -18,7 +18,7 @@
 #include "Feature.h"
 #include "glview/VertexState.h"
 
-enum ShaderAttribIndex { BARYCENTRIC_ATTRIB };
+enum ShaderAttribIndex { BARYCENTRIC_ATTRIB, CUTOUT_ATTRIB };
 
 // Hash function for opengl vertex data.
 template <typename T>
@@ -369,15 +369,17 @@ public:
   inline ElementsMap& elementsMap() { return elements_map_; }
 
   size_t shader_attributes_index_{0};
+  bool has_shader_attributes_{false};
   void addShaderData();
 
   void add_barycentric_attribute(size_t active_point_index, size_t primitive_index, size_t shape_size,
                                  bool outlines);
   void create_triangle(const Color4f& color, const Vector3d& p0, const Vector3d& p1, const Vector3d& p2,
                        size_t primitive_index, size_t shape_size, bool outlines, bool enable_barycentric,
-                       bool mirror);
+                       bool mirror, bool is_cutout = false);
   void create_surface(const PolySet& ps, const Transform3d& m, const Color4f& default_color,
-                      bool enable_barycentric, bool force_default_color = false);
+                      bool enable_barycentric = false, bool force_default_color = false,
+                      bool is_cutout = false);
   void create_edges(const Polygon2d& polygon, const Transform3d& m, const Color4f& color);
   void create_polygons(const PolySet& ps, const Transform3d& m, const Color4f& color);
 

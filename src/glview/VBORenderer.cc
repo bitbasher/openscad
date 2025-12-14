@@ -164,5 +164,30 @@ void VBORenderer::add_shader_pointers(VBOBuilder& vbo_builder, const ShaderUtils
       });
   }
 
+  // Set pointer for isCutout attribute if present in shader
+  auto it_cutout = shaderinfo->attributes.find("isCutout");
+  if (it_cutout != shaderinfo->attributes.end()) {
+    GLuint cutout_index = it_cutout->second;
+    if (cutout_index > 0) {
+      count = vertex_data->attributes()[vbo_builder.shader_attributes_index_ + CUTOUT_ATTRIB]->count();
+      type = vertex_data->attributes()[vbo_builder.shader_attributes_index_ + CUTOUT_ATTRIB]->glType();
+      stride = vertex_data->stride();
+      offset = start_offset +
+               vertex_data->interleavedOffset(vbo_builder.shader_attributes_index_ + CUTOUT_ATTRIB);
+      ss->glBegin().emplace_back(
+        [cutout_index, count, type, stride, offset, ss_ptr = std::weak_ptr<VertexState>(ss)]() {
+          auto ss = ss_ptr.lock();
+          if (ss) {
+            // NOLINTBEGIN(performance-no-int-to-ptr)
+            GL_TRACE("glVertexAttribPointer(%d, %d, %d, GL_FALSE, %d, %p)",
+                     cutout_index % count % type % stride % (GLvoid *)(ss->drawOffset() + offset));
+            GL_CHECKD(glVertexAttribPointer(cutout_index, count, type, GL_FALSE, stride,
+                                            (GLvoid *)(ss->drawOffset() + offset)));
+            // NOLINTEND(performance-no-int-to-ptr)
+          }
+        });
+    }
+  }
+
   vbo_builder.states().emplace_back(std::move(ss));
 }

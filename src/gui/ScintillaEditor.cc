@@ -732,6 +732,61 @@ void ScintillaEditor::enumerateColorSchemesInPath(ScintillaEditor::colorscheme_s
   }
 }
 
+void ScintillaEditor::applyTemporaryColor(const QString& keyPath, const QColor& color)
+{
+  if (!this->lexer) return;
+  // Direct text/paper
+  if (keyPath == "text") {
+    this->lexer->setColor(color);
+    return;
+  }
+  if (keyPath == "paper") {
+    this->lexer->setPaper(color);
+    return;
+  }
+
+  // Colors.* mapping depending on lexer type
+#if ENABLE_LEXERTL
+  if (auto *lx = dynamic_cast<ScadLexer2 *>(this->lexer)) {
+    const QString key = keyPath.startsWith("colors.") ? keyPath.mid(7) : keyPath;
+    if (key == "operator") lx->setColor(color, ScadLexer2::Operator);
+    else if (key == "comment") lx->setColor(color, ScadLexer2::Comment);
+    else if (key == "number") lx->setColor(color, ScadLexer2::Number);
+    else if (key == "string") lx->setColor(color, ScadLexer2::String);
+    else if (key == "variables") lx->setColor(color, ScadLexer2::Variable);
+    else if (key == "keywords") lx->setColor(color, ScadLexer2::Keyword);
+    else if (key == "transformations") lx->setColor(color, ScadLexer2::Transformation);
+    else if (key == "booleans") lx->setColor(color, ScadLexer2::Boolean);
+    else if (key == "functions") lx->setColor(color, ScadLexer2::Function);
+    else if (key == "models") lx->setColor(color, ScadLexer2::Model);
+    else if (key == "special-variables") lx->setColor(color, ScadLexer2::SpecialVariable);
+    else if (key.startsWith("keyword-custom")) {
+      bool ok = false;
+      int idx = key.mid(QString("keyword-custom").size()).toInt(&ok);
+      if (ok && idx >= 1 && idx <= 10) {
+        lx->setColor(color, ScadLexer2::Custom1 + (idx - 1));
+      }
+    }
+  }
+#else
+  if (auto *lx = dynamic_cast<QsciLexerCPP *>(this->lexer)) {
+    const QString key = keyPath.startsWith("colors.") ? keyPath.mid(7) : keyPath;
+    if (key == "keyword1") lx->setColor(color, QsciLexerCPP::Keyword);
+    else if (key == "keyword2") lx->setColor(color, QsciLexerCPP::KeywordSet2);
+    else if (key == "keyword3") lx->setColor(color, QsciLexerCPP::GlobalClass);
+    else if (key == "number") lx->setColor(color, QsciLexerCPP::Number);
+    else if (key == "string") lx->setColor(color, QsciLexerCPP::DoubleQuotedString);
+    else if (key == "operator") lx->setColor(color, QsciLexerCPP::Operator);
+    else if (key == "comment") lx->setColor(color, QsciLexerCPP::Comment);
+    else if (key == "commentline") lx->setColor(color, QsciLexerCPP::CommentLine);
+    else if (key == "commentdoc") {
+      lx->setColor(color, QsciLexerCPP::CommentDoc);
+      lx->setColor(color, QsciLexerCPP::CommentLineDoc);
+    } else if (key == "commentdockeyword") lx->setColor(color, QsciLexerCPP::CommentDocKeyword);
+  }
+#endif
+}
+
 ScintillaEditor::colorscheme_set_t ScintillaEditor::enumerateColorSchemes()
 {
   colorscheme_set_t result_set;

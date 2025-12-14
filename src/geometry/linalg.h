@@ -109,6 +109,10 @@ public:
   [[nodiscard]] float b() const { return color_[2]; }
   [[nodiscard]] float a() const { return color_[3]; }
 
+  // Indexed access to components: 0=r, 1=g, 2=b, 3=a
+  [[nodiscard]] float operator[](int i) const { return color_[i]; }
+  float& operator[](int i) { return color_[i]; }
+
   [[nodiscard]] bool operator<(const Color4f& b) const
   {
     for (int i = 0; i < 4; i++) {

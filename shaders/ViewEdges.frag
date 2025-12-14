@@ -1,8 +1,12 @@
 #version 120
 
+uniform vec4 edgeColorFront;
+uniform vec4 edgeColorBack;
+
 varying vec4 color;
 varying vec3 vBC;
 varying float shading;
+varying float vIsCutout;
 
 vec3 smoothstep3f(vec3 edge0, vec3 edge1, vec3 x) {
   vec3 t;
@@ -19,6 +23,7 @@ float edgeFactor() {
 }
 
 void main(void) {
-  vec4 color_edge = vec4((color.rgb + vec3(1))/2, 1.0);
+  // Select edge color based on whether this is a cutout/back face
+  vec4 color_edge = mix(edgeColorFront, edgeColorBack, vIsCutout);
   gl_FragColor = mix(color_edge, vec4(color.rgb * shading, color.a), edgeFactor());
 }

@@ -69,3 +69,27 @@ std::optional<Color4f> RenderSettings::getColorOverride(RenderColor rc) const
   }
   return std::nullopt;
 }
+
+void RenderSettings::clearSchemeOverrides(const std::string& scheme)
+{
+  scheme_overrides_.erase(scheme);
+  // If this was the current scheme, also clear global overrides
+  if (scheme == current_scheme_) {
+    clearColorOverrides();
+  }
+}
+
+bool RenderSettings::hasSchemeOverrides(const std::string& scheme) const
+{
+  auto it = scheme_overrides_.find(scheme);
+  return it != scheme_overrides_.end() && !it->second.empty();
+}
+
+std::map<RenderColor, Color4f> RenderSettings::getSchemeOverrides(const std::string& scheme) const
+{
+  auto it = scheme_overrides_.find(scheme);
+  if (it != scheme_overrides_.end()) {
+    return it->second;
+  }
+  return {};
+}

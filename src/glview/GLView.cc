@@ -48,10 +48,15 @@ void GLView::setupShader()
   edge_shader = std::make_unique<ShaderUtils::ShaderInfo>(ShaderUtils::ShaderInfo{
     .resource = resource,
     .type = ShaderUtils::ShaderType::EDGE_RENDERING,
-    .uniforms = {},
+    .uniforms =
+      {
+        {"edgeColorFront", glGetUniformLocation(resource.shader_program, "edgeColorFront")},
+        {"edgeColorBack", glGetUniformLocation(resource.shader_program, "edgeColorBack")},
+      },
     .attributes =
       {
         {"barycentric", glGetAttribLocation(resource.shader_program, "barycentric")},
+        {"isCutout", glGetAttribLocation(resource.shader_program, "isCutout")},
       },
   });
 }

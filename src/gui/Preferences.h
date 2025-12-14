@@ -15,6 +15,7 @@
 #include <QWidget>
 #include <QMainWindow>
 #include <QSettings>
+#include <QPointer>
 #include <string>
 
 #include "gui/qtgettext.h"  // IWYU pragma: keep
@@ -25,6 +26,7 @@
 #include "gui/ScintillaEditor.h"
 #include "glview/ColorMap.h"
 
+class EditorInterface;
 class GlobalPreferences;
 class Preferences : public QMainWindow, public Ui::Preferences, public InitConfigurator
 {
@@ -54,6 +56,8 @@ public slots:
   void on_stackedWidget_currentChanged(int);
   void on_colorSchemeChooser_itemSelectionChanged();
   void on_colorSchemeChooserEditor_itemSelectionChanged();
+  void on_buttonBox3DScheme_clicked(QAbstractButton *button);
+  void on_buttonBoxEditorScheme_clicked(QAbstractButton *button);
   void on_fontChooser_currentFontChanged(const QFont&);
   void on_fontSize_currentIndexChanged(int);
   void on_syntaxHighlight_currentTextChanged(const QString&);
@@ -184,6 +188,13 @@ signals:
   void characterThresholdChanged(int val) const;
   void stepSizeChanged(int val) const;
   void toolbarExportChanged() const;
+  // Emitted when an individual editor color changes in Preferences
+  void editorColorChanged(const QString& keyPath, const QColor& color) const;
+
+public:
+  // Track the last focused editor across windows so live updates target a single instance
+  void setLastFocusedEditor(EditorInterface *editor);
+  EditorInterface *lastFocusedEditor() const;
 
 private slots:
   void on_lineEditStepSize_textChanged(const QString& arg1);
@@ -221,6 +232,7 @@ private:
   void setupEditorPreview();
   void update3DPreview(const QString& schemeName);
   void updateEditorPreview(const QString& schemeName);
+  void updateButtonStates();
   void onColor3DPickerClicked(int row, RenderColor colorKey, const QString& schemeName,
                               const QColor& initialColor);
 
@@ -230,6 +242,8 @@ private:
   // Preview widgets
   QLabel *label3DPreviewPlaceholder;
   ScintillaEditor *editorPreview;
+
+  QPointer<EditorInterface> lastFocusedEditor_;
 };
 class GlobalPreferences
 {

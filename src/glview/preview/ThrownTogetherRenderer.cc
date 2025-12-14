@@ -135,6 +135,22 @@ void ThrownTogetherRenderer::draw(bool showedges, const ShaderUtils::ShaderInfo 
     GL_TRACE("glUseProgram(%d)", shaderinfo->resource.shader_program);
     GL_CHECKD(glUseProgram(shaderinfo->resource.shader_program));
     VBOUtils::shader_attribs_enable(*shaderinfo);
+
+    // Set edge color uniforms for preview edges using CGAL edge colors
+    if (shaderinfo->type == ShaderUtils::ShaderType::EDGE_RENDERING && showedges) {
+      Color4f edgeFront, edgeBack;
+      getColorSchemeColor(ColorMode::MATERIAL_EDGES, edgeFront);
+      getColorSchemeColor(ColorMode::CUTOUT_EDGES, edgeBack);
+
+      auto it_front = shaderinfo->uniforms.find("edgeColorFront");
+      if (it_front != shaderinfo->uniforms.end() && it_front->second >= 0) {
+        GL_CHECKD(glUniform4f(it_front->second, edgeFront[0], edgeFront[1], edgeFront[2], edgeFront[3]));
+      }
+      auto it_back = shaderinfo->uniforms.find("edgeColorBack");
+      if (it_back != shaderinfo->uniforms.end() && it_back->second >= 0) {
+        GL_CHECKD(glUniform4f(it_back->second, edgeBack[0], edgeBack[1], edgeBack[2], edgeBack[3]));
+      }
+    }
   }
 
   GL_TRACE0("glDepthFunc(GL_LEQUAL)");
@@ -191,7 +207,8 @@ void ThrownTogetherRenderer::createChainObject(VertexStateContainer& container, 
 
     add_shader_pointers(vbo_builder, shaderinfo);
 
-    vbo_builder.create_surface(*csgobj.leaf->polyset, csgobj.leaf->matrix, color, enable_barycentric);
+    vbo_builder.create_surface(*csgobj.leaf->polyset, csgobj.leaf->matrix, color, enable_barycentric,
+                               false, false);
     if (const auto ttr_vs = std::dynamic_pointer_cast<TTRVertexState>(vbo_builder.states().back())) {
       ttr_vs->setCsgObjectIndex(csgobj.leaf->index);
     }
@@ -215,7 +232,7 @@ void ThrownTogetherRenderer::createChainObject(VertexStateContainer& container, 
       // Scale 2D negative objects 10% in the Z direction to avoid z fighting
       mat *= Eigen::Scaling(1.0, 1.0, 1.1);
     }
-    vbo_builder.create_surface(*csgobj.leaf->polyset, mat, color, enable_barycentric);
+    vbo_builder.create_surface(*csgobj.leaf->polyset, mat, color, enable_barycentric, false, false);
     if (auto ttr_vs = std::dynamic_pointer_cast<TTRVertexState>(vbo_builder.states().back())) {
       ttr_vs->setCsgObjectIndex(csgobj.leaf->index);
     }
@@ -234,7 +251,8 @@ void ThrownTogetherRenderer::createChainObject(VertexStateContainer& container, 
     });
     container.states().emplace_back(std::move(cull));
 
-    vbo_builder.create_surface(*csgobj.leaf->polyset, csgobj.leaf->matrix, color, enable_barycentric);
+    vbo_builder.create_surface(*csgobj.leaf->polyset, csgobj.leaf->matrix, color, enable_barycentric,
+                               false, false);
     if (auto ttr_vs = std::dynamic_pointer_cast<TTRVertexState>(vbo_builder.states().back())) {
       ttr_vs->setCsgObjectIndex(csgobj.leaf->index);
     }

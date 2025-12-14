@@ -123,7 +123,22 @@ Preferences::Preferences(QWidget *parent) : QMainWindow(parent)
   setup3DPrintPage();
   setup3DPreview();
   setupEditorPreview();
+
+  // Connect button box signals
+  connect(buttonBox3DScheme, &QDialogButtonBox::clicked, this,
+          &Preferences::on_buttonBox3DScheme_clicked);
+  connect(buttonBoxEditorScheme, &QDialogButtonBox::clicked, this,
+          &Preferences::on_buttonBoxEditorScheme_clicked);
+
   updateGUI();
+
+  // Prevent button bars from stretching to full width; keep natural size
+  if (buttonBox3DScheme) {
+    buttonBox3DScheme->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  }
+  if (buttonBoxEditorScheme) {
+    buttonBoxEditorScheme->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  }
 }
 
 void Preferences::init()
@@ -479,32 +494,60 @@ void Preferences::setup3DPrintPage()
 void Preferences::on_colorSchemeChooser_itemSelectionChanged()
 {
   QString scheme = this->colorSchemeChooser->currentItem()->text();
+  // Strip any existing " *" marker for the actual scheme name
+  QString cleanScheme = scheme;
+  if (cleanScheme.endsWith(" *")) {
+    cleanScheme.chop(2);
+    // Remove bold when scheme is cleaned
+    if (auto *item = colorSchemeChooser->currentItem()) {
+      QFont normalFont = item->font();
+      normalFont.setBold(false);
+      item->setFont(normalFont);
+      item->setText(cleanScheme);
+    }
+  }
+
   QSettingsCached settings;
-  settings.setValue("3dview/colorscheme", scheme);
+  settings.setValue("3dview/colorscheme", cleanScheme);
+
+  // Track the current scheme in RenderSettings
+  RenderSettings::inst()->setCurrentScheme(cleanScheme.toStdString());
 
   // Populate the color table and metadata
-  populate3DColorTable(scheme);
+  populate3DColorTable(cleanScheme);
 
   // Update the preview
-  update3DPreview(scheme);
+  update3DPreview(cleanScheme);
 
-  emit colorSchemeChanged(scheme);
+  emit colorSchemeChanged(cleanScheme);
 }
 
 void Preferences::on_colorSchemeChooserEditor_itemSelectionChanged()
 {
   QString scheme = this->colorSchemeChooserEditor->currentItem()->text();
+  // Strip any existing " *" marker for the actual scheme name
+  QString cleanScheme = scheme;
+  if (cleanScheme.endsWith(" *")) {
+    cleanScheme.chop(2);
+    // Remove bold when scheme is cleaned
+    if (auto *item = colorSchemeChooserEditor->currentItem()) {
+      QFont normalFont = item->font();
+      normalFont.setBold(false);
+      item->setFont(normalFont);
+      item->setText(cleanScheme);
+    }
+  }
   QSettingsCached settings;
-  settings.setValue("editor/syntaxhighlight", scheme);
+  settings.setValue("editor/syntaxhighlight", cleanScheme);
 
   // Populate the color table and metadata
-  populateEditorColorTable(scheme);
+  populateEditorColorTable(cleanScheme);
 
   // Update the preview
-  updateEditorPreview(scheme);
+  updateEditorPreview(cleanScheme);
 
   // Emit signal to update the main editor
-  emit syntaxHighlightChanged(scheme);
+  emit syntaxHighlightChanged(cleanScheme);
 }
 void Preferences::on_fontChooser_currentFontChanged(const QFont& font)
 {
@@ -1628,20 +1671,29 @@ void Preferences::populate3DColorTable(const QString& schemeName)
 
   // Set column resize modes
   tableWidget3DColors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
-  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+  tableWidget3DColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
   tableWidget3DColors->setMinimumWidth(400);  // Ensure table has reasonable minimum
-  tableWidget3DColors->setMaximumWidth(600);  // Limit table width for combobox
+  // Allow full width expansion instead of limiting
 
   int row = 0;
   for (const auto& colorPair : colors) {
+    // Hide crosshair color as it's not used in current 3D view
+    if (colorPair.first == RenderColor::CROSSHAIR_COLOR) {
+      continue;
+    }
     // Name column
     QTableWidgetItem *nameItem =
       new QTableWidgetItem(renderColorToString(static_cast<int>(colorPair.first)));
     nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
     tableWidget3DColors->setItem(row, 0, nameItem);
 
-    const Color4f& color = colorPair.second;
+    // Use override-aware color from ColorMap when available
+    Color4f color = ColorMap::inst()->getColor(colors, colorPair.first);
+    // Fallback to scheme color if override-aware path returns default
+    if (color.a() == 0 && color.r() == 0 && color.g() == 0 && color.b() == 0) {
+      color = colorPair.second;
+    }
     int r = static_cast<int>(color.r() * 255);
     int g = static_cast<int>(color.g() * 255);
     int b = static_cast<int>(color.b() * 255);
@@ -1666,6 +1718,7 @@ void Preferences::populate3DColorTable(const QString& schemeName)
     // Color picker column - simple button with QColorDialog
     QPushButton *colorButton = new QPushButton(tr("Pick…"));
     colorButton->setStyleSheet(QString("background: rgb(%1,%2,%3);").arg(r).arg(g).arg(b));
+    colorButton->setFixedWidth(60);
     // [Prefs_known_good] Use named slot for color picker to keep code maintainable
     connect(colorButton, &QPushButton::clicked, this,
             [this, row, renderColor = colorPair.first, schemeName, qcolor]() {
@@ -1677,13 +1730,17 @@ void Preferences::populate3DColorTable(const QString& schemeName)
     row++;
   }
 
-  // Set RGB column width to be reasonable for hex values with border
+  // Set baseline column widths to stay aligned with the editor table
   if (tableWidget3DColors->rowCount() > 0) {
-    tableWidget3DColors->setColumnWidth(1, 120);  // Width for "000  000  000" with border
+    tableWidget3DColors->setColumnWidth(1, 100);  // Width for "000  000  000" with border
+    tableWidget3DColors->setColumnWidth(2, 60);   // Match picker width with editor table
   }
 
-  // Update header with scheme name (path is private in RenderColorScheme)
-  label3DSchemePath->setText(schemeName);
+  // Update header with scheme file path
+  label3DSchemePath->setText(QString::fromStdString(scheme->path()));
+
+  // Update button states based on override presence
+  updateButtonStates();
 
   // Update metadata if available
   const boost::property_tree::ptree& pt = scheme->propertyTree();
@@ -1749,12 +1806,11 @@ void Preferences::populateEditorColorTable(const QString& schemeName)
   // Hide the vertical header (row numbers/index column)
   tableWidgetEditorColors->verticalHeader()->setVisible(false);
 
-  // Set column resize modes
+  // Set column resize modes to mirror the 3D table, but allow a wider name column for editor entries
   tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
-  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-  tableWidgetEditorColors->setMinimumWidth(300);  // Ensure table has reasonable minimum
-  tableWidgetEditorColors->setMaximumWidth(400);  // Limit table width
+  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+  tableWidgetEditorColors->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+  tableWidgetEditorColors->setMinimumWidth(400);  // Keep layout aligned with the 3D table baseline
 
   int row = 0;
   for (const auto& entry : colorEntries) {
@@ -1795,6 +1851,7 @@ void Preferences::populateEditorColorTable(const QString& schemeName)
       pickBtn->setStyleSheet(
         QString("background: rgb(%1,%2,%3);").arg(color.red()).arg(color.green()).arg(color.blue()));
     }
+    pickBtn->setFixedWidth(60);
     connect(pickBtn, &QPushButton::clicked, this, [this, row, entry, color]() {
       onEditorColorPickerClicked(row, QString::fromStdString(entry.first), color);
     });
@@ -1803,14 +1860,18 @@ void Preferences::populateEditorColorTable(const QString& schemeName)
     row++;
   }
 
-  // Columns widths: RGB suitable for text; pick button compact
+  // Column widths: align with 3D table for RGB/picker; keep a slightly wider name column for editor
   if (tableWidgetEditorColors->rowCount() > 0) {
-    tableWidgetEditorColors->setColumnWidth(1, 120);
-    tableWidgetEditorColors->setColumnWidth(2, 80);
+    tableWidgetEditorColors->setColumnWidth(0, 200);  // allow longer editor color names
+    tableWidgetEditorColors->setColumnWidth(1, 100);
+    tableWidgetEditorColors->setColumnWidth(2, 60);
   }
 
   // Update header with scheme path
   labelEditorSchemePath->setText(QString::fromStdString(scheme->path().generic_string()));
+
+  // Update button states based on override presence
+  updateButtonStates();
 
   // Update metadata if available
   QString metadata;
@@ -1863,23 +1924,74 @@ void Preferences::setupEditorPreview()
 
   editorPreview = new ScintillaEditor(widgetEditorPreview);
   editorPreview->setMinimumHeight(150);
+  // Load external preview sample to better reflect real code
+  QString sampleCode;
+  const QStringList candidatePaths = {"../scripts/prefsPreview.scad", "../../scripts/prefsPreview.scad",
+                                      "./scripts/prefsPreview.scad"};
 
-  // Set some sample OpenSCAD code
-  QString sampleCode =
-    "// Editor preview sample\n"
-    "/* multi-line comment */\n"
-    "module sample(str) {\n"
-    "  // strings and operators\n"
-    "  echo(\"label=\" + str);\n"
-    "  a = 3; b = 5; c = sin(a) + cos(b) * 2;\n"
-    "  cube([10, 10, 10]);\n"
-    "  translate([5, 5, 10]) cylinder(h=5, r=3, $fn=32);\n"
-    "}\n"
-    "difference() {\n"
-    "  sample(\"demo\");\n"
-    "  sphere(r=8, $fn=64);\n"
-    "}\n";
-  // editorPreview sample applied below
+  bool loadedSample = false;
+  for (const auto& path : candidatePaths) {
+    QFile f(path);
+    if (f.exists() && f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+      sampleCode = QString::fromUtf8(f.readAll());
+      f.close();
+      loadedSample = true;
+      break;
+    }
+  }
+
+  if (!loadedSample) {
+    // Log file load failure with the search paths
+    qWarning() << "Preferences: Failed to load editor preview sample from paths"
+               << candidatePaths;
+    // Fallback: previous inline sample as a single string
+    sampleCode = QString::fromUtf8(R"(
+/*
+ to preview all scheme colors in the
+ preferences-editor color scheme panel
+ multi-line comment color
+ */
+$fa=0.5; $fs=1.0;
+module sample( strName ) {  // keyword
+  echo( tsc="text-string-color", strName );
+  x = 10;  // number-color
+  translate([x, x, x])  // keyword vector
+    cube(4);
+}
+h=0x34;
+array = [12, "string", 0x3fe, 1.3456e10];
+obj1 = object(num=12,
+    str="string", hex=0x3fe,
+    sci=1.3456e10 );
+obj2 = object( [["num",12],
+    ["str","string"],["hex",0x3fe],
+    ["sci",1.45e3]
+    ] );
+
+module ScadLogo()
+{
+  function r_from_dia(d) = d / 2;
+
+  module rotcy(rot, r, h) {
+    rotate(90, rot)
+      cylinder(r = r, h = h, center = true);
+  }
+  difference() {
+    sphere(r = r_from_dia(size), $fn=16);
+    rotcy([0, 0, 0], cy_r, cy_h);
+    rotcy([1, 0, 0], cy_r, cy_h);
+    rotcy([0, 1, 0], cy_r, cy_h);
+  }
+  size = 50;
+  hole = 25;
+
+  cy_r = r_from_dia(hole);
+  cy_h = r_from_dia(size * 2.5);
+}
+ScadLogo();
+
+)");
+  }
 
   editorPreview->qsci->setText(sampleCode);
   editorPreview->qsci->setReadOnly(true);
@@ -1916,6 +2028,56 @@ void Preferences::updateEditorPreview(const QString& schemeName)
   settings.setValue("editor/colorscheme", oldScheme);
 }
 
+void Preferences::updateButtonStates()
+{
+  // Enable Save/Reset buttons only when there are session overrides
+  bool hasOverrides = RenderSettings::inst()->hasColorOverrides();
+  buttonBox3DScheme->setEnabled(hasOverrides);
+  buttonBoxEditorScheme->setEnabled(hasOverrides);
+}
+
+void Preferences::setLastFocusedEditor(EditorInterface *editor)
+{
+  lastFocusedEditor_ = editor;
+}
+
+EditorInterface *Preferences::lastFocusedEditor() const
+{
+  return lastFocusedEditor_.data();
+}
+
+void Preferences::on_buttonBox3DScheme_clicked(QAbstractButton *button)
+{
+  QString currentScheme = this->colorSchemeChooser->currentItem()->text();
+  if (currentScheme.endsWith(" *")) {
+    currentScheme.chop(2);
+  }
+
+  auto standardButton = buttonBox3DScheme->standardButton(button);
+
+  if (standardButton == QDialogButtonBox::Reset) {
+    // Reset: Clear all overrides for this scheme
+    RenderSettings::inst()->clearSchemeOverrides(currentScheme.toStdString());
+    // Refresh the table to remove markers
+    populate3DColorTable(currentScheme);
+    emit requestRedraw();
+    updateButtonStates();
+  } else if (standardButton == QDialogButtonBox::Save) {
+    // Save: Write current overrides to a user scheme file
+    QMessageBox::information(this, tr("Save Color Scheme"),
+                             tr("Saving custom color schemes not yet implemented.\n"
+                                "Your changes are active for this session."));
+  }
+}
+
+void Preferences::on_buttonBoxEditorScheme_clicked(QAbstractButton *button)
+{
+  auto role = buttonBoxEditorScheme->buttonRole(button);
+  // TODO: Implement editor scheme save/reset when editor color overrides are supported
+  QMessageBox::information(this, tr("Editor Color Scheme"),
+                           tr("Editor color scheme modifications not yet implemented."));
+}
+
 // Apply editor color change (preview only for now)
 void Preferences::onEditorColorPickerClicked(int row, const QString& keyPath, const QColor& initial)
 {
@@ -1939,7 +2101,35 @@ void Preferences::onEditorColorPickerClicked(int row, const QString& keyPath, co
                          .arg(newColor.red())
                          .arg(newColor.green())
                          .arg(newColor.blue()));
+    btn->setFixedWidth(60);
   }
+  // Mark editor color item dirty visually
+  if (auto *nameItem = tableWidgetEditorColors->item(row, 0)) {
+    QString currentText = nameItem->text();
+    if (!currentText.endsWith(" *")) {
+      nameItem->setText(currentText + " *");
+      QFont f = nameItem->font();
+      f.setBold(true);
+      nameItem->setFont(f);
+    }
+  }
+
+  // Mark editor scheme name dirty in chooser list with BOLD
+  if (auto *item = colorSchemeChooserEditor->currentItem()) {
+    QString t = item->text();
+    if (!t.endsWith(" *")) {
+      item->setText(t + " *");
+      QFont boldFont = item->font();
+      boldFont.setBold(true);
+      item->setFont(boldFont);
+    }
+  }
+  // Apply to preview editor immediately
+  if (editorPreview) {
+    editorPreview->applyTemporaryColor(keyPath, newColor);
+  }
+  // Propagate to main editor window (live update)
+  emit editorColorChanged(keyPath, newColor);
   // TODO: Persist editor color changes: requires editable scheme model and write-back.
 }
 // [Prefs_known_good] Handle 3D color picker button clicks - update both preview and 3D view
@@ -1966,5 +2156,34 @@ void Preferences::onColor3DPickerClicked(int row, RenderColor colorKey, const QS
   // Apply a session override so renders use the new color without mutating scheme files
   Color4f newColorValue(newColor.redF(), newColor.greenF(), newColor.blueF(), 1.0f);
   RenderSettings::inst()->setColorOverride(colorKey, newColorValue);
+  RenderSettings::inst()->setCurrentScheme(schemeName.toStdString());
+
+  // Update the row's name column to show it's modified
+  if (auto *nameItem = tableWidget3DColors->item(row, 0)) {
+    QString currentText = nameItem->text();
+    if (!currentText.endsWith(" *")) {
+      nameItem->setText(currentText + " *");
+      nameItem->setFont([]() {
+        QFont f;
+        f.setBold(true);
+        return f;
+      }());
+    }
+  }
+
   emit requestRedraw();
+
+  // Update button states since we now have overrides
+  updateButtonStates();
+
+  // Mark scheme name dirty in chooser list with BOLD
+  if (auto *item = colorSchemeChooser->currentItem()) {
+    QString t = item->text();
+    if (!t.endsWith(" *")) {
+      item->setText(t + " *");
+      QFont boldFont = item->font();
+      boldFont.setBold(true);
+      item->setFont(boldFont);
+    }
+  }
 }

@@ -305,22 +305,22 @@
                 </widget>
                </item>
 
-               <!-- Table and Preview side by side -->
-               <item>
+                 <!-- Table and Preview side by side -->
+                 <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_3DTablePreview">
                  <item>
                   <widget class="QTableWidget" name="tableWidget3DColors">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                     <horstretch>1</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
                    </property>
                    <property name="minimumWidth">
-                    <number>300</number>
+                  <number>300</number>
                    </property>
                    <property name="columnCount">
-                    <number>3</number>
+                  <number>3</number>
                    </property>
                    <column>
                     <property name="text">
@@ -358,6 +358,19 @@
                    </property>
                   </widget>
                  </item>
+                 <item>
+                  <spacer name="horizontalSpacer_3DRight">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
                 </layout>
                </item>
 
@@ -365,7 +378,7 @@
                <item>
                 <widget class="QDialogButtonBox" name="buttonBox3DScheme">
                  <property name="standardButtons">
-                  <set>QDialogButtonBox::NoButton</set>
+                  <set>QDialogButtonBox::Reset|QDialogButtonBox::Save|QDialogButtonBox::SaveAll</set>
                  </property>
                 </widget>
                </item>
@@ -486,22 +499,22 @@
                 </widget>
                </item>
 
-               <!-- Table and Preview side by side -->
-               <item>
+                 <!-- Table and Preview side by side -->
+                 <item>
                 <layout class="QHBoxLayout" name="horizontalLayout_EditorTablePreview">
                  <item>
                   <widget class="QTableWidget" name="tableWidgetEditorColors">
                    <property name="sizePolicy">
-                    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                     <horstretch>1</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
+                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
                    </property>
                    <property name="minimumWidth">
-                    <number>300</number>
+                  <number>300</number>
                    </property>
                    <property name="columnCount">
-                    <number>3</number>
+                  <number>3</number>
                    </property>
                    <column>
                     <property name="text">
@@ -539,6 +552,19 @@
                    </property>
                   </widget>
                  </item>
+                 <item>
+                  <spacer name="horizontalSpacer_EditorRight">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>40</width>
+                     <height>20</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
                 </layout>
                </item>
 
@@ -546,7 +572,7 @@
                <item>
                 <widget class="QDialogButtonBox" name="buttonBoxEditorScheme">
                  <property name="standardButtons">
-                  <set>QDialogButtonBox::NoButton</set>
+                  <set>QDialogButtonBox::Reset|QDialogButtonBox::Save|QDialogButtonBox::SaveAll</set>
                  </property>
                 </widget>
                </item>

@@ -144,6 +144,23 @@ void OpenCSGRenderer::draw(bool showedges, const ShaderUtils::ShaderInfo *shader
       GL_TRACE("glUseProgram(%d)", shaderinfo->resource.shader_program);
       GL_CHECKD(glUseProgram(shaderinfo->resource.shader_program));
       VBOUtils::shader_attribs_enable(*shaderinfo);
+
+      // Set edge color uniforms for preview edges using CGAL edge colors
+      if (shaderinfo->type == ShaderUtils::ShaderType::EDGE_RENDERING && showedges) {
+        Color4f edgeFront, edgeBack;
+        getColorSchemeColor(ColorMode::MATERIAL_EDGES, edgeFront);
+        getColorSchemeColor(ColorMode::CUTOUT_EDGES, edgeBack);
+
+        auto it_front = shaderinfo->uniforms.find("edgeColorFront");
+        if (it_front != shaderinfo->uniforms.end() && it_front->second >= 0) {
+          GL_CHECKD(
+            glUniform4f(it_front->second, edgeFront[0], edgeFront[1], edgeFront[2], edgeFront[3]));
+        }
+        auto it_back = shaderinfo->uniforms.find("edgeColorBack");
+        if (it_back != shaderinfo->uniforms.end() && it_back->second >= 0) {
+          GL_CHECKD(glUniform4f(it_back->second, edgeBack[0], edgeBack[1], edgeBack[2], edgeBack[3]));
+        }
+      }
     }
 
     for (const auto& vertex_state : product->states()) {
@@ -243,7 +260,7 @@ void OpenCSGRenderer::createCSGVBOProducts(const CSGProducts& products, bool hig
         if (color.a() == 1.0f) {
           // object is opaque, draw normally
           vbo_builder.create_surface(*csgobj.leaf->polyset, csgobj.leaf->matrix, last_color,
-                                     enable_barycentric, override_color);
+                                     enable_barycentric, override_color, false);
           if (const auto csg_vs = std::dynamic_pointer_cast<OpenCSGVertexState>(vertex_states.back())) {
             csg_vs->setCsgObjectIndex(csgobj.leaf->index);
             primitives.emplace_back(
@@ -330,7 +347,7 @@ void OpenCSGRenderer::createCSGVBOProducts(const CSGProducts& products, bool hig
           tmp *= Eigen::Scaling(1.0, 1.0, 1.1);
         }
         vbo_builder.create_surface(*csgobj.leaf->polyset, tmp, last_color, enable_barycentric,
-                                   override_color);
+                                   override_color, false);
         if (const auto csg_vs = std::dynamic_pointer_cast<OpenCSGVertexState>(vertex_states.back())) {
           csg_vs->setCsgObjectIndex(csgobj.leaf->index);
           primitives.emplace_back(

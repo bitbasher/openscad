@@ -98,6 +98,11 @@ private:
   void enumerateColorSchemesInPath(colorscheme_set_t& result_set, const fs::path& path);
   colorscheme_set_t enumerateColorSchemes();
 
+public:
+  // Apply a color change to the current lexer/editor given a key path.
+  // Examples: "text", "paper", "colors.operator", "colors.comment"
+  void applyTemporaryColor(const QString& keyPath, const QColor& color);
+
   bool eventFilter(QObject *obj, QEvent *event) override;
   bool handleKeyEventNavigateNumber(QKeyEvent *);
   bool handleWheelEventNavigateNumber(QWheelEvent *);
