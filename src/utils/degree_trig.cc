@@ -30,6 +30,11 @@
 
 #include <Eigen/Core>
 
+// Define M_SQRT1_2 if not defined (1 divided by sqrt(2))
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.70710678118654752440
+#endif
+
 #include "geometry/linalg.h"
 
 //

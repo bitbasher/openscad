@@ -23,46 +23,15 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
+#include "utils/stringutils.h"
 
-#include <utility>
-#include <memory>
-#include "core/Builtins.h"
-#include "core/Children.h"
-#include "core/module.h"
-#include "core/ModuleInstantiation.h"
-#include "core/node.h"
-#include "core/Parameters.h"
 
-std::shared_ptr<AbstractNode> builtin_group(const ModuleInstantiation *inst, Arguments arguments,
-                                            const Children& children)
+namespace std {
+
+string to_integer(string s)
 {
-  Parameters parameters = Parameters::parse(std::move(arguments), inst->location(), {"name"});
 
-  const auto& grpname = parameters["name"];
-  if (grpname.isUnDefined()) {
-    grpname="generic";
-  }
-  return children.instantiate(std::make_shared<GroupNode>(inst));
+  return "test";
 }
 
-std::string ImportNode::name() const { return "group"; }
-
-std::string ImportNode::toString() const
-{
-  std::ostringstream stream;
-  fs::path path((std::string)this->grpname);
-
-  stream << this->name();
-  stream << "(name = " << this->grpname;
-
-  return stream.str();
-}
-
-
-void register_builtin_group()
-{
-  Builtins::init("group", new BuiltinModule(builtin_group),
-                 {
-                   "group(string)",
-                 });
 }
