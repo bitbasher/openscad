@@ -1,0 +1,28 @@
+Strings Expansion — Design Intent Archive
+----------------------------------------
+
+Scope
+- Add higher-level string utilities (search/count/positions, safer replace variants, parsing helpers, filename safety).
+- Keep compatibility with LTS OpenSCAD (no objects/records; plain vectors).
+
+Decisions & Rationale
+- substr_count vs len: len() is length; substr_count(str, sub) counts occurrences (needed for loops/workflows).
+- substr_positions:
+  - Single-substring: returns [pos1, pos2, ...].
+  - Multi-substring: returns [[delim, pos1, pos2, ...], [delim2, ...]]; delimiter string at index 0, positions follow. Avoids using objects (dev-only).
+- replace variants:
+  - replace stays “replace all”.
+  - replace_last: last occurrence only.
+  - replace_engine(search, repl, position=0, repeat_from=false): position=0 → all; position=N → Nth only; repeat_from=true → from N onward. Kept separate to avoid overloading replace().
+- to_safe_filename: safer than “slugify”; preserve intent but strip/normalize to filesystem-safe form.
+- Parsing:
+  - parse_delimited(str, delims="{", pos=1): single delimiter pair only; preserves whitespace; pos=1 returns first match (string/undef); pos=0 returns vector of all matches.
+  - parse_delimited_all(str): always “all delimiters” mode; applies {}, [], <>, (), ' ', " ", « »; returns mixed vector preserving whitespace and nesting, e.g. ["abc ", ["(", " xyz ", ["{", " pqr "], " de"], " tail"].
+  - parse_pairs(str, pair_delim="=", item_delim=","): returns [[k,v], ...]; useful for lightweight key=value parsing.
+- UTF-8: all functions must be UTF-8 safe (consistent with existing string functions).
+
+Open Questions (deferred)
+- None pending for this batch; JSON/XML parsing intentionally out-of-scope now.
+
+Testing Plan
+- Place tests in tests/data/scad/functions-string/ and tests/data/scad/functions-parsing/ (parsing kept separate for clarity).

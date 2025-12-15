@@ -1,0 +1,40 @@
+Files & Paths Expansion — Design Intent Archive
+----------------------------------------------
+
+Scope
+- Extend directory listing with type filtering; add vector glob filter utility.
+
+Decisions & Rationale
+- read_dir(path, filter="filesdirs"):
+  - filter: "filesdirs" (default), "fileonly", "dironly".
+  - Lists directory contents only - NO globbing.
+  - NO glob wildcards in path argument (prevents security/ambiguity issues).
+  - Keeps read_dir focused on ONE task: reading a directory.
+  
+- glob_search(vector, pattern):
+  - Filters any vector by glob pattern (maximally reusable).
+  - Not file-specific - works on any vector of strings.
+  - Encourages composition: scad_files = glob_search(read_dir("src", filter="fileonly"), "*.scad").
+  
+- Why no glob_pattern parameter on read_dir?
+  - Separation of concerns: read_dir lists, glob_search filters.
+  - Avoids duplicating glob_search functionality.
+  - Prevents path glob ambiguity (is "test*" a dirname or pattern?).
+  - Composition is clear and idiomatic (Unix philosophy: ls | grep).
+  
+- Security/visibility:
+  - Continue to exclude hidden/system/dotfiles/symlinks (current behavior).
+  - Path resolution remains relative to the .scad file location.
+  - No glob wildcards allowed in path argument.
+  
+- Cross-platform: same normalization/canonical rules as current file funcs; UTF-8 paths.
+
+Open Questions (deferred)
+- No write operations (write_text, etc.) in this batch; consider later with opt-in safeguards.
+- No metadata (timestamps, symlink info) in this batch.
+
+Testing Plan
+- Keep tests in tests/data/scad/functions-files/.
+- Test glob_search with various patterns.
+- Test read_dir with filter parameter.
+- Test composition: glob_search(read_dir(...), pattern).

@@ -1,0 +1,568 @@
+=== File Functions ===
+
+==== read_dir ====
+
+Read directory contents with optional filtering.
+
+'''Syntax:'''
+ read_dir(path)
+ read_dir(path, filter)
+
+'''Parameters:'''
+* '''path''': String - Directory path to read
+* '''filter''': String (optional) - Filter mode: "filesdirs" (default), "fileonly", or "dironly"
+
+'''Returns:'''
+Vector of directory entries (strings)
+
+'''Examples:'''
+<source lang="openscad">
+// List all entries in current directory
+all_entries = read_dir(".");
+
+// List only files (exclude directories)
+files = read_dir(".", "fileonly");
+
+// List only directories (exclude files)
+dirs = read_dir(".", "dironly");
+
+// List all entries explicitly
+all = read_dir(".", "filesdirs");
+</source>
+
+'''Notes:'''
+* Hidden files and system files are excluded for security
+* Returns empty vector if directory doesn't exist or is inaccessible
+* File entries do not include path, only the filename
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== glob_search ====
+
+Filter vector of strings using glob pattern matching.
+
+'''Syntax:'''
+ glob_search(vector, pattern)
+
+'''Parameters:'''
+* '''vector''': Vector of strings to filter
+* '''pattern''': String - Glob pattern with wildcards
+
+'''Wildcards:'''
+* '''*''' - Matches any sequence of characters
+* '''?''' - Matches any single character
+
+'''Returns:'''
+Vector containing only strings that match the pattern
+
+'''Examples:'''
+<source lang="openscad">
+files = ["file.txt", "file.scad", "data.txt", "readme.md"];
+
+// Find all .txt files
+txt_files = glob_search(files, "*.txt");
+// Returns: ["file.txt", "data.txt"]
+
+// Find files starting with 'f'
+f_files = glob_search(files, "f*");
+// Returns: ["file.txt", "file.scad"]
+
+// Single character wildcard
+readme = glob_search(files, "readme.?d");
+// Returns: ["readme.md"]
+
+// Combine with read_dir to filter directory contents
+scad_files = glob_search(read_dir("."), "*.scad");
+</source>
+
+'''Notes:'''
+* Pattern matching is case-sensitive on Unix-like systems
+* Non-string vector elements are silently skipped
+* Empty pattern matches nothing
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+=== String Functions ===
+
+==== substr_count ====
+
+Count occurrences of a substring within a string.
+
+'''Syntax:'''
+ substr_count(string, substring)
+
+'''Parameters:'''
+* '''string''': String - The string to search within
+* '''substring''': String - The substring to search for
+
+'''Returns:'''
+Number of non-overlapping occurrences
+
+'''Examples:'''
+<source lang="openscad">
+count1 = substr_count("hello world", "l");
+// Returns: 3
+
+count2 = substr_count("aaa", "aa");
+// Returns: 1 (non-overlapping)
+
+count3 = substr_count("test", "x");
+// Returns: 0 (not found)
+
+// Count words/delimiters
+text = "one,two,three,four";
+commas = substr_count(text, ",");
+// Returns: 3
+</source>
+
+'''Notes:'''
+* Counts non-overlapping matches only
+* Empty substring returns 0
+* Case-sensitive matching
+* UTF-8 safe
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== substr_positions ====
+
+Find positions of substring(s) within a string.
+
+'''Syntax:'''
+ substr_positions(string, substring)
+ substr_positions(string, [substring1, substring2, ...])
+
+'''Parameters:'''
+* '''string''': String - The string to search within
+* '''substring''': String or vector of strings - Substring(s) to search for
+
+'''Returns:'''
+* Single substring mode: Vector of positions [pos1, pos2, ...]
+* Multiple substring mode: Vector of [[delim, pos1, pos2, ...], ...] for each delimiter
+
+'''Examples:'''
+<source lang="openscad">
+// Single substring
+positions1 = substr_positions("hello", "l");
+// Returns: [2, 3]
+
+positions2 = substr_positions("hello world", "o");
+// Returns: [4, 7]
+
+// Multiple substrings
+positions3 = substr_positions("a,b;c", [",", ";"]);
+// Returns: [[",", 1], [";", 3]]
+
+positions4 = substr_positions("hello world", ["l", "o"]);
+// Returns: [["l", 2, 3, 9], ["o", 4, 7]]
+
+// No matches
+positions5 = substr_positions("test", "x");
+// Returns: []
+</source>
+
+'''Notes:'''
+* Positions are 0-indexed
+* Returns empty vector if substring not found
+* Multiple substring mode: first element of each sub-vector is the delimiter itself
+* Non-string elements in vector are silently skipped
+* UTF-8 safe
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== replace_last ====
+
+Replace the last occurrence of a substring.
+
+'''Syntax:'''
+ replace_last(string, search, replacement)
+
+'''Parameters:'''
+* '''string''': String - The string to search within
+* '''search''': String - The substring to find
+* '''replacement''': String - The string to replace with
+
+'''Returns:'''
+String with last occurrence replaced, or original string if not found
+
+'''Examples:'''
+<source lang="openscad">
+result1 = replace_last("hello hello", "hello", "hi");
+// Returns: "hello hi"
+
+result2 = replace_last("a,b,c", ",", ";");
+// Returns: "a,b;c"
+
+result3 = replace_last("test", "x", "y");
+// Returns: "test" (no match, unchanged)
+
+// Useful for file extensions
+filename = replace_last("file.backup.txt", ".txt", ".bak");
+// Returns: "file.backup.bak"
+</source>
+
+'''Notes:'''
+* Only replaces the last (rightmost) occurrence
+* Empty search string returns original unchanged
+* For replacing all occurrences, use existing replace() function
+* UTF-8 safe
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== to_safe_filename ====
+
+Convert string to filesystem-safe filename.
+
+'''Syntax:'''
+ to_safe_filename(string)
+
+'''Parameters:'''
+* '''string''': String - The string to sanitize
+
+'''Returns:'''
+Filesystem-safe filename string
+
+'''Sanitization rules:'''
+* Forbidden characters (< > : " / \ | ? *) replaced with underscore
+* Control characters (ASCII 0-31, 127) replaced with underscore
+* Leading and trailing spaces removed
+* Leading and trailing dots removed
+* Returns "file" if result is empty after sanitization
+
+'''Examples:'''
+<source lang="openscad">
+safe1 = to_safe_filename("normal_file.txt");
+// Returns: "normal_file.txt" (unchanged)
+
+safe2 = to_safe_filename("file<name>.txt");
+// Returns: "file_name_.txt"
+
+safe3 = to_safe_filename("my file: test");
+// Returns: "my file_ test"
+
+safe4 = to_safe_filename("file/path\\name");
+// Returns: "file_path_name"
+
+safe5 = to_safe_filename("Report: Q4-2024 <FINAL>");
+// Returns: "Report_ Q4-2024 _FINAL_"
+
+safe6 = to_safe_filename("  .hidden.  ");
+// Returns: "hidden"
+</source>
+
+'''Notes:'''
+* Based on Windows filename restrictions (most restrictive)
+* Preserves internal spaces (does not replace with underscores)
+* Does not check for reserved names (CON, PRN, etc.)
+* Does not enforce length limits
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+=== Math Functions ===
+
+==== clamp ====
+
+Constrain a value to a specified range.
+
+'''Syntax:'''
+ clamp(value, min, max)
+
+'''Parameters:'''
+* '''value''': Number - The value to clamp
+* '''min''': Number - Minimum allowed value
+* '''max''': Number - Maximum allowed value
+
+'''Returns:'''
+Number clamped to [min, max]
+
+'''Examples:'''
+<source lang="openscad">
+v1 = clamp(5, 0, 10);     // Returns: 5 (within range)
+v2 = clamp(15, 0, 10);    // Returns: 10 (above max)
+v3 = clamp(-5, 0, 10);    // Returns: 0 (below min)
+v4 = clamp(7.5, 2.5, 8.5); // Returns: 7.5
+
+// Useful for ensuring parameters stay in valid ranges
+module sized_cube(size) {
+    safe_size = clamp(size, 1, 100);
+    cube(safe_size);
+}
+</source>
+
+'''Notes:'''
+* Returns undef if min > max
+* Does not check for NaN or infinity
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== interpolate ====
+
+Linear interpolation between two values.
+
+'''Syntax:'''
+ interpolate(a, b, t)
+
+'''Parameters:'''
+* '''a''': Number - Start value
+* '''b''': Number - End value
+* '''t''': Number - Interpolation factor
+
+'''Formula:'''
+ result = a + (b - a) * t
+
+'''Returns:'''
+Interpolated value (t=0 returns a, t=1 returns b)
+
+'''Examples:'''
+<source lang="openscad">
+v1 = interpolate(0, 10, 0);    // Returns: 0
+v2 = interpolate(0, 10, 1);    // Returns: 10
+v3 = interpolate(0, 10, 0.5);  // Returns: 5
+v4 = interpolate(0, 10, 0.25); // Returns: 2.5
+v5 = interpolate(5, 15, 0.5);  // Returns: 10
+
+// Extrapolation (t outside [0,1])
+v6 = interpolate(0, 10, 1.5);  // Returns: 15
+v7 = interpolate(0, 10, -0.5); // Returns: -5
+
+// Animate between two values
+module animated_cube($t) {
+    size = interpolate(10, 20, $t);
+    cube(size);
+}
+</source>
+
+'''Notes:'''
+* t is not clamped; values outside [0,1] will extrapolate
+* Works with negative numbers
+* Commonly called "lerp" (linear interpolation) in other languages
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== deg2rad ====
+
+Convert degrees to radians.
+
+'''Syntax:'''
+ deg2rad(degrees)
+
+'''Parameters:'''
+* '''degrees''': Number - Angle in degrees
+
+'''Formula:'''
+ radians = degrees * π / 180
+
+'''Returns:'''
+Angle in radians
+
+'''Examples:'''
+<source lang="openscad">
+r1 = deg2rad(0);     // Returns: 0
+r2 = deg2rad(90);    // Returns: ~1.5708 (π/2)
+r3 = deg2rad(180);   // Returns: ~3.14159 (π)
+r4 = deg2rad(360);   // Returns: ~6.28318 (2π)
+r5 = deg2rad(45);    // Returns: ~0.7854 (π/4)
+r6 = deg2rad(-90);   // Returns: ~-1.5708 (-π/2)
+
+// Using with external libraries expecting radians
+angle_deg = 30;
+angle_rad = deg2rad(angle_deg);
+</source>
+
+'''Notes:'''
+* OpenSCAD's built-in trig functions (sin, cos, etc.) use degrees
+* This function is useful when working with external APIs or libraries that expect radians
+* Round-trip conversion preserves value: rad2deg(deg2rad(x)) == x
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== rad2deg ====
+
+Convert radians to degrees.
+
+'''Syntax:'''
+ rad2deg(radians)
+
+'''Parameters:'''
+* '''radians''': Number - Angle in radians
+
+'''Formula:'''
+ degrees = radians * 180 / π
+
+'''Returns:'''
+Angle in degrees
+
+'''Examples:'''
+<source lang="openscad">
+d1 = rad2deg(0);       // Returns: 0
+d2 = rad2deg(1.5708);  // Returns: ~90
+d3 = rad2deg(3.14159); // Returns: ~180
+d4 = rad2deg(6.28318); // Returns: ~360
+d5 = rad2deg(0.7854);  // Returns: ~45
+d6 = rad2deg(-1.5708); // Returns: ~-90
+
+// Converting from external library providing radians
+radian_value = some_external_function();
+degree_value = rad2deg(radian_value);
+
+// Round-trip test
+original = 45;
+converted = rad2deg(deg2rad(original));
+// converted == 45
+</source>
+
+'''Notes:'''
+* OpenSCAD's built-in trig functions (sin, cos, etc.) use degrees
+* This function is useful when converting from external APIs or libraries that provide radians
+* Round-trip conversion preserves value: deg2rad(rad2deg(x)) == x
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+=== Parsing Functions ===
+
+==== parse_delimited ====
+
+Extract content between delimiter pairs from a string.
+
+'''Syntax:'''
+ parse_delimited(string)
+ parse_delimited(string, delims)
+ parse_delimited(string, delims, pos)
+
+'''Parameters:'''
+* '''string''': String - The string to parse
+* '''delims''': String (optional, default "{") - Opening delimiter character
+* '''pos''': Number (optional, default 1) - Which match to return
+** pos=0: Return vector of all matches
+** pos=N: Return Nth match (1-indexed) as string, or undef if not found
+
+'''Recognized delimiter pairs:'''
+* { } - Curly braces
+* [ ] - Square brackets
+* < > - Angle brackets
+* ( ) - Parentheses
+* ' ' - Single quotes
+* " " - Double quotes
+
+'''Returns:'''
+String (single match) or vector of strings (all matches)
+
+'''Examples:'''
+<source lang="openscad">
+// Default: first content between {}
+text1 = "before {content1} middle {content2} after";
+result1 = parse_delimited(text1);
+// Returns: "content1"
+
+// Get all matches
+result2 = parse_delimited(text1, "{", 0);
+// Returns: ["content1", "content2"]
+
+// Get second match
+result3 = parse_delimited(text1, "{", 2);
+// Returns: "content2"
+
+// Different delimiter
+text2 = "say 'hello world' and 'goodbye'";
+result4 = parse_delimited(text2, "'", 1);
+// Returns: "hello world"
+
+// Nested delimiters
+text3 = "outer {inner {nested} content} more";
+result5 = parse_delimited(text3, "{", 1);
+// Returns: "inner {nested} content"
+
+// Brackets
+text4 = "data [item1] and [item2]";
+result6 = parse_delimited(text4, "[", 0);
+// Returns: ["item1", "item2"]
+
+// Extract and parse configuration
+config = "settings {width=800, height=600}";
+config_str = parse_delimited(config, "{", 1);
+config_pairs = parse_pairs(config_str);
+// config_str: "width=800, height=600"
+// config_pairs: [["width", "800"], ["height", "600"]]
+</source>
+
+'''Notes:'''
+* Supports nested delimiters of the same type
+* Content preserves whitespace
+* Returns undef if match not found
+* Opening delimiter determines closing delimiter automatically
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+==== parse_pairs ====
+
+Parse key-value pairs from delimited string.
+
+'''Syntax:'''
+ parse_pairs(string)
+ parse_pairs(string, pair_delim)
+ parse_pairs(string, pair_delim, item_delim)
+
+'''Parameters:'''
+* '''string''': String - String containing key-value pairs
+* '''pair_delim''': String (optional, default "=") - Delimiter between key and value
+* '''item_delim''': String (optional, default ",") - Delimiter between pairs
+
+'''Returns:'''
+Vector of [key, value] pairs: [[key1, value1], [key2, value2], ...]
+
+'''Examples:'''
+<source lang="openscad">
+// Basic key=value parsing
+pairs1 = parse_pairs("width=100, height=200, depth=50");
+// Returns: [["width", "100"], ["height", "200"], ["depth", "50"]]
+
+// Custom delimiters
+pairs2 = parse_pairs("name:John;age:30;city:NYC", ":", ";");
+// Returns: [["name", "John"], ["age", "30"], ["city", "NYC"]]
+
+// URL query parameters
+pairs3 = parse_pairs("x=10&y=20&z=30", "=", "&");
+// Returns: [["x", "10"], ["y", "20"], ["z", "30"]]
+
+// Whitespace is trimmed
+pairs4 = parse_pairs("  key1 = value1 ,  key2 = value2  ");
+// Returns: [["key1", "value1"], ["key2", "value2"]]
+
+// Single pair
+pairs5 = parse_pairs("color=red");
+// Returns: [["color", "red"]]
+
+// Extract specific value
+function get_value(pairs, key) = 
+    let(found = search([key], pairs, 1, 0))
+    len(found) > 0 ? pairs[found[0]][1] : undef;
+
+config = parse_pairs("width=100, height=200");
+w = get_value(config, "width");  // Returns: "100"
+</source>
+
+'''Notes:'''
+* Whitespace around keys and values is automatically trimmed
+* Empty values are preserved as empty strings
+* Pairs without delimiters are skipped
+* Does not handle quoted strings or escape sequences
+* Available since: OpenSCAD 2024.12 (development)
+
+----
+
+=== See Also ===
+
+* [[String Functions]]
+* [[Mathematical Functions]]
+* [[List Comprehensions]]
+* [[File I/O]]

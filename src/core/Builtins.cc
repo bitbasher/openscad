@@ -65,6 +65,11 @@ extern void register_builtin_cgaladv();
 extern void register_builtin_offset();
 extern void register_builtin_linear_extrude();
 extern void register_builtin_rotate_extrude();
+extern void register_builtin_strings();
+extern void register_builtin_files();
+extern void register_builtin_newmath();
+extern void register_builtin_parsing();
+
 #if defined(ENABLE_EXPERIMENTAL) && defined(ENABLE_CGAL)
 extern void register_builtin_roof();
 #endif
@@ -96,6 +101,11 @@ void Builtins::initialize()
   register_builtin_offset();
   register_builtin_linear_extrude();
   register_builtin_rotate_extrude();
+  register_builtin_strings();
+  register_builtin_files();
+  register_builtin_newmath();
+  register_builtin_parsing();
+  
 #if defined(ENABLE_EXPERIMENTAL) && defined(ENABLE_CGAL)
   register_builtin_roof();
 #endif
