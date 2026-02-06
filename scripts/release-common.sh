@@ -61,7 +61,11 @@ if [ ! -f $OPENSCADDIR/src/openscad.cc ]; then
   exit 1
 fi
 
-CMAKE_CONFIG="-DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF"
+CMAKE_CONFIG="-DCMAKE_BUILD_TYPE=Release -DENABLE_TESTS=OFF $OPENSCAD_CMAKE_EXTRA_OPTS"
+
+if [ -n "${USE_SCCACHE}" ] && command -v sccache >/dev/null 2>&1; then
+  CMAKE_CONFIG="$CMAKE_CONFIG -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+fi
 
 if [[ "$OSTYPE" =~ "darwin" ]]; then
   OS=MACOSX
@@ -99,7 +103,7 @@ case $OS in
     ;;
     LINUX)
         TARGET=
-        export QT_SELECT=5
+        export QT_SELECT=6
     ;;
     WIN)
         export QTDIR=/c/devmingw/qt2009.03
@@ -115,7 +119,7 @@ case $OS in
           SHARED=-shared
         fi
         MINGWCONFIG=mingw-cross-env$SHARED
-        . ./scripts/setenv-mingw-xbuild.sh $ARCH $SHARED
+        . ./scripts/setenv-mingw-xbuild.sh $ARCH $SHARED qt6
         TARGET=
         ZIP="zip"
         ZIPARGS="-r -q"
@@ -267,7 +271,7 @@ if [ -n $FONTDIR ]; then
   cp -a fonts/10-liberation.conf $FONTDIR
   cp -a fonts/Liberation-2.00.1 $FONTDIR
   case $OS in
-    MACOSX) 
+    MACOSX)
       cp -a fonts/05-osx-fonts.conf $FONTDIR
       cp -a fonts-osx/* $FONTDIR
       ;;

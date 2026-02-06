@@ -29,6 +29,11 @@ if(POLICY CMP0167) # Since CMake 3.30
 endif()
 
 include("cmake/Modules/openscad_version.cmake")
+configure_file(
+  ${CMAKE_SOURCE_DIR}/src/version.cc.in
+  ${CMAKE_BINARY_DIR}/version.cc
+  @ONLY
+)
 
 option(INFO "Display build configuration info at end of cmake config" ON)
 option(ENABLE_TESTS "Run testsuite after building." ON)
@@ -39,11 +44,7 @@ option(USE_BUILTIN_MANIFOLD "Use manifold from submodule" ON)
 option(USE_BUILTIN_CLIPPER2 "Use Clipper2 from submodule" ON)
 option(SNAPSHOT "Create dev snapshot, uses nightly icons" OFF)
 option(HEADLESS "Build without GUI frontend" OFF)
-if(APPLE)
-  option(USE_QT6 "Build the GUI with Qt6" ON)
-else()
-option(USE_QT6 "Build the GUI with Qt6" OFF)
-endif()
+option(USE_QT6 "Build the GUI with Qt6" ON)
 option(ENABLE_EGL "Enable EGL support if available" ON)
 option(ENABLE_GLX "Enable GLX support if available" ON)
 # For now, we'll default to whatever OpenCSG uses (>=1.6 -> GLAD, <1.6 -> GLEW)
@@ -76,12 +77,12 @@ cmake_dependent_option(APPLE_UNIX "Build OpenSCAD in Unix mode in MacOS X instea
 cmake_dependent_option(ENABLE_QTDBUS "Enable DBus input driver for Qt." ON "NOT HEADLESS" OFF)
 set(ENABLE_GAMEPAD "AUTO" CACHE STRING "Enable Qt5Gamepad input driver")
 set_property(CACHE ENABLE_GAMEPAD PROPERTY STRINGS "AUTO" "ON" "OFF")
-set(WASM_BUILD_TYPE "web" CACHE STRING 
+set(WASM_BUILD_TYPE "web" CACHE STRING
   "WebAssembly build type. Support web (builds an OpenSCAD module) or node (standalone .js executable)")
 
 if (USE_QT6)
-  # Minimum version required for Qt-6.5
-  set(DEPLOYMENT_TARGET "11.0")
+  # Minimum version required for Qt-6.8
+  set(DEPLOYMENT_TARGET "12.0")
 else()
   # Minimum version required for std::filesystem
   set(DEPLOYMENT_TARGET "10.15")
@@ -294,7 +295,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL Emscripten)
   set(ENV{PKG_CONFIG_PATH} "/emsdk/upstream/emscripten/cache/sysroot/lib/pkgconfig")
   target_compile_definitions(OpenSCADLibInternal PUBLIC CGAL_DISABLE_ROUNDING_MATH_CHECK)
   target_link_libraries(OpenSCADLibInternal PUBLIC /emsdk/upstream/emscripten/cache/sysroot/lib/libz.a)
-  
+
   # https://emscripten.org/docs/tools_reference/emcc.html
   # https://emscripten.org/docs/tools_reference/settings_reference.html
   target_compile_options(OpenSCADLibInternal PUBLIC -fexceptions)
@@ -306,7 +307,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL Emscripten)
     -sEXIT_RUNTIME=1
     -sEXPORTED_RUNTIME_METHODS=['ENV','ERRNO_CODES','FS','PATH','callMain']
     -sMAXIMUM_MEMORY=4GB
-    
+
     # -g produces DWARF debug info, which is quite large and may need debugger extensions.
     # Alternatively, can pass -gsource-map -sLOAD_SOURCE_MAP but then variable debugging isn't possible
     $<$<CONFIG:Debug>:-g -O0>
@@ -325,8 +326,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL Emscripten)
       -sNODERAWFS
 
       # Single .js (more elegant for CLI release) is larger than separate .js & .wasm (preferred for web)
-      $<$<CONFIG:Release>:-sSINGLE_FILE> 
-      
+      $<$<CONFIG:Release>:-sSINGLE_FILE>
+
       # Alternatively to single-file mode, code caching could make repeated runs faster:
       # -sNODE_CODE_CACHING -sWASM_ASYNC_COMPILATION=0
     )
@@ -590,6 +591,14 @@ if(ENABLE_CGAL)
   #  set(CMAKE_MODULE_PATH ${OPENSCAD_ORIGINAL_CMAKE_MODULE_PATH})
   #endif()
   set(CMAKE_MODULE_PATH ${OPENSCAD_ORIGINAL_CMAKE_MODULE_PATH})
+else()
+  message(WARNING "\n"
+	  "*** Configuration with ENABLE_CGAL=OFF ***\n"
+          "This settings is currently only meant for developement purposes.\n"
+	  "Please do not disabled CGAL for any normal builds as this will "
+          "disable a couple of features that are normally expected to be "
+          "available even with the Manifold geometry engine is the default "
+	  "(e.g. Minkowski).")
 endif(ENABLE_CGAL)
 
 find_package(LibZip REQUIRED QUIET)
@@ -597,11 +606,6 @@ message(STATUS "libzip: ${LIBZIP_VERSION}")
 target_include_directories(OpenSCADLibInternal SYSTEM PUBLIC ${LIBZIP_INCLUDE_DIR_ZIP} ${LIBZIP_INCLUDE_DIR_ZIPCONF})
 target_link_libraries(OpenSCADLibInternal PUBLIC ${LIBZIP_LIBRARY})
 target_compile_definitions(OpenSCADLibInternal PUBLIC ENABLE_LIBZIP)
-
-find_package(Freetype 2.4.9 REQUIRED QUIET)
-message(STATUS "Freetype: ${FREETYPE_VERSION_STRING}")
-target_include_directories(OpenSCADLibInternal SYSTEM PUBLIC ${FREETYPE_INCLUDE_DIRS})
-target_link_libraries(OpenSCADLibInternal PUBLIC ${FREETYPE_LIBRARIES})
 
 find_package(LibXml2 2.9 REQUIRED QUIET)
 message(STATUS "LibXml2: ${LIBXML2_VERSION_STRING}")
@@ -891,6 +895,12 @@ if(NOT HEADLESS)
   endif()
 endif()
 
+# Find after Qt which otherwise gets confused when building on MXE
+find_package(Freetype 2.4.9 REQUIRED QUIET)
+message(STATUS "Freetype: ${FREETYPE_VERSION_STRING}")
+target_include_directories(OpenSCADLibInternal SYSTEM PUBLIC ${FREETYPE_INCLUDE_DIRS})
+target_link_libraries(OpenSCADLibInternal PUBLIC ${FREETYPE_LIBRARIES})
+
 # Setup ccache (if available) to speed up recompiles. It's especially useful
 # when switching back and forth between branches where large numbers of files
 # would otherwise need to be re-compiled each time.
@@ -902,13 +912,6 @@ if(USE_CCACHE)
   endif()
 endif()
 
-target_compile_definitions(OpenSCADLibInternal PUBLIC OPENSCAD_VERSION=${OPENSCAD_VERSION} OPENSCAD_SHORTVERSION=${OPENSCAD_SHORTVERSION} OPENSCAD_YEAR=${OPENSCAD_YEAR} OPENSCAD_MONTH=${OPENSCAD_MONTH})
-if (DEFINED OPENSCAD_DAY)
-  target_compile_definitions(OpenSCADLibInternal PUBLIC OPENSCAD_DAY=${OPENSCAD_DAY})
-endif()
-if(DEFINED OPENSCAD_COMMIT)
-  target_compile_definitions(OpenSCADLibInternal PUBLIC OPENSCAD_COMMIT=${OPENSCAD_COMMIT})
-endif()
 
 #
 # Platform specific settings
@@ -1021,6 +1024,7 @@ set(CORE_SOURCES
   src/core/RenderVariables.cc
   src/core/RotateExtrudeNode.cc
   src/core/ScopeContext.cc
+  src/core/Selection.cc
   src/core/Settings.cc
   src/core/SourceFile.cc
   src/core/SourceFileCache.cc
@@ -1114,7 +1118,7 @@ set(CORE_SOURCES
 if(ENABLE_PYTHON)
 	list(APPEND CORE_SOURCES
 		    src/python/pymod.cc
-		    src/python/pyopenscad.cc 
+		    src/python/pyopenscad.cc
 		    src/python/pyfunctions.cc )
 	target_compile_definitions(OpenSCADLibInternal PUBLIC ENABLE_PYTHON)
 endif()
@@ -1283,7 +1287,6 @@ set(GUI_SOURCES
   src/gui/ExportPdfDialog.cc
   src/gui/ExportSvgDialog.cc
   src/gui/OctoPrintApiKeyDialog.cc
-  src/gui/FontListDialog.cc
   src/gui/FontListTableView.cc
   src/gui/InitConfigurator.cc
   src/gui/ImportUtils.cc
@@ -1293,6 +1296,10 @@ set(GUI_SOURCES
   src/gui/Measurement.cc
   src/gui/Animate.cc
   src/gui/FontList.cc
+  src/gui/ColorList.cc
+  src/gui/ColorLabel.cc
+  src/gui/ColorLayout.cc
+  src/gui/EditorColorMap.cc
   src/gui/MouseSelector.cc
   src/gui/OctoPrint.cc
   src/gui/OpenCSGWarningDialog.cc
@@ -1356,7 +1363,9 @@ set(GUI_HEADERS
     src/gui/ExportSvgDialog.h
     src/gui/OctoPrintApiKeyDialog.h
     src/gui/FontList.h
-    src/gui/FontListDialog.h
+    src/gui/ColorList.h
+    src/gui/ColorLabel.h
+    src/gui/ColorLayout.h
     src/gui/FontListTableView.h
     src/gui/IgnoreWheelWhenNotFocused.h
     src/gui/ImportUtils.h
@@ -1412,7 +1421,7 @@ set(GUI_UIS
     src/gui/ExportSvgDialog.ui
     src/gui/OctoPrintApiKeyDialog.ui
     src/gui/FontList.ui
-    src/gui/FontListDialog.ui
+    src/gui/ColorList.ui
     src/gui/LaunchingScreen.ui
     src/gui/LibraryInfoDialog.ui
     src/gui/MainWindow.ui
@@ -1444,7 +1453,12 @@ endif()
 if (ENABLE_MANIFOLD AND ENABLE_CGAL)
   list(APPEND Sources ${MANIFOLD_CGAL_SOURCES})
 endif()
-list(APPEND Sources src/openscad.cc ${CORE_SOURCES} ${OFFSCREEN_SOURCES})
+list(APPEND Sources
+  src/openscad.cc
+  ${CMAKE_BINARY_DIR}/version.cc
+  ${CORE_SOURCES}
+  ${OFFSCREEN_SOURCES}
+)
 
 set_source_files_properties(
   # flex and bison tends to generate many macros, which does not work well with
@@ -1532,7 +1546,10 @@ elseif(WIN32)
 endif()
 
 file(GLOB_RECURSE TEST_SOURCES
-  "src/*_test.cc"
+  "src/utils/*_test.cc"
+)
+file(GLOB_RECURSE GUI_TEST_SOURCES
+  "src/gui/*_test.cc"
 )
 list(FILTER Sources EXCLUDE REGEX ".*_test[.]cc")
 list(REMOVE_ITEM Sources "src/main_wrapper.cc")
@@ -1571,7 +1588,7 @@ if(APPLE AND NOT APPLE_UNIX)
   file(COPY ${CMAKE_SOURCE_DIR}/templates DESTINATION ${BUNDLE_RESOURCES_DIR})
 
   if(ENABLE_GUI_TESTS)
-    file(COPY 
+    file(COPY
          ${CMAKE_SOURCE_DIR}/tests/data/basic-ux
          ${CMAKE_SOURCE_DIR}/tests/data/modulecache-tests
          DESTINATION ${BUNDLE_RESOURCES_DIR}/tests)
@@ -1618,6 +1635,7 @@ else()
 endif()
 
 # Configure icon-related files, for release vs nightly
+configure_file(doc/openscad.1.in doc/openscad.1)
 configure_file(${CMAKE_CURRENT_LIST_DIR}/openscad.appdata.xml.in ${CMAKE_CURRENT_LIST_DIR}/openscad.appdata.xml.in2)
 configure_file(${RESOURCE_DIR}/icons/openscad.desktop.in ${RESOURCE_DIR}/icons/openscad.desktop)
 configure_file(${RESOURCE_DIR}/common.qrc.in ${RESOURCE_DIR}/common.qrc)
@@ -1648,7 +1666,7 @@ if(NOT APPLE OR APPLE_UNIX)
       install(FILES ${CMAKE_BINARY_DIR}/submodules/mimalloc/mimalloc.dll DESTINATION ".")
     endif()
   else()
-    install(FILES ${CMAKE_CURRENT_LIST_DIR}/doc/openscad.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 RENAME openscad${SUFFIX_WITH_DASH}.1)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/doc/openscad.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 RENAME openscad${SUFFIX_WITH_DASH}.1)
     install(FILES ${CMAKE_CURRENT_LIST_DIR}/openscad.appdata.xml DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo RENAME org.openscad.OpenSCAD${SUFFIX_WITH_DASH}.appdata.xml)
     install(FILES ${RESOURCE_DIR}/icons/openscad.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications RENAME openscad${SUFFIX_WITH_DASH}.desktop)
     install(FILES ${RESOURCE_DIR}/icons/openscad.xml DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/mime/packages RENAME openscad${SUFFIX_WITH_DASH}.xml)
@@ -1744,7 +1762,11 @@ if(ENABLE_TESTS)
     # You can ignore it. Something about incompatibility with POSITION_INDEPENDENT_CODE
     # and how the system Catch2 static library is compiled. It should be fine.
 
-    add_executable(OpenSCADUnitTests ${TEST_SOURCES})
+    if(HEADLESS)
+      add_executable(OpenSCADUnitTests ${TEST_SOURCES})
+    else()
+      add_executable(OpenSCADUnitTests ${TEST_SOURCES} ${GUI_TEST_SOURCES})
+    endif()
     target_link_libraries(OpenSCADUnitTests PRIVATE Catch2::Catch2WithMain OpenSCADLibInternal svg)
     include(CTest)
     include(Catch)

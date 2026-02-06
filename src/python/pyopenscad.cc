@@ -38,7 +38,10 @@ extern "C" PyObject *PyInit_openscad(void);
 bool python_active;
 bool python_trusted;
 
-void PyObjectDeleter(PyObject *pObject) { Py_XDECREF(pObject); };
+void PyObjectDeleter(PyObject *pObject)
+{
+  Py_XDECREF(pObject);
+};
 
 PyObjectUniquePtr pythonInitDict(nullptr, PyObjectDeleter);
 PyObjectUniquePtr pythonMainModule(nullptr, PyObjectDeleter);
@@ -112,6 +115,12 @@ void python_unlock(void)
 
 std::shared_ptr<AbstractNode> PyOpenSCADObjectToNode(PyObject *obj, PyObject **dict)
 {
+  // Verify obj is actually a PyOpenSCADType before casting to avoid segfault
+  if (!PyObject_IsInstance(obj, reinterpret_cast<PyObject *>(&PyOpenSCADType))) {
+    *dict = nullptr;
+    return nullptr;
+  }
+
   std::shared_ptr<AbstractNode> result = ((PyOpenSCADObject *)obj)->node;
   if (result.use_count() > 2) {
     result = result->clone();
@@ -253,6 +262,7 @@ std::vector<Vector3d> python_vectors(PyObject *vec, int mindim, int maxdim)
 
 /**
  * Create a CurveDiscretizer by extracting parameters from __main__ and kwargs
+ * @param kwargs *Remove* any control parameter arguments found.
  */
 
 CurveDiscretizer CreateCurveDiscretizer(PyObject *kwargs)
@@ -261,8 +271,11 @@ CurveDiscretizer CreateCurveDiscretizer(PyObject *kwargs)
   return CurveDiscretizer([kwargs, mainModule](const char *key) -> std::optional<double> {
     double result;
     if (kwargs != nullptr && PyDict_Check(kwargs)) {  // kwargs can be nullptr
-      PyObject *value = PyDict_GetItemString(kwargs, key);
-      if (!(python_numberval(value, &result))) return result;  // value an be Integer, Number, ...
+      if (PyObject *value = PyDict_GetItemString(kwargs, key); value != nullptr) {
+        // PyArg_ParseTupleAndKeywords does not allow unspecified keyword args.
+        PyDict_DelItemString(kwargs, key);
+        if (!(python_numberval(value, &result))) return result;  // value can be Integer, Number, ...
+      }
     }
     if (mainModule != nullptr) {
       if (PyObject_HasAttrString(mainModule, key)) {
@@ -438,7 +451,9 @@ void initPython(const std::string& binDir, double time)
   PyRun_String(stream.str().c_str(), Py_file_input, pythonInitDict.get(), pythonInitDict.get());
 }
 
-void finishPython(void) {}
+void finishPython(void)
+{
+}
 
 std::string evaluatePython(const std::string& code, bool dry_run)
 {
@@ -585,7 +600,10 @@ static PyModuleDef OpenSCADModule = {PyModuleDef_HEAD_INIT,
                                      NULL,
                                      NULL};
 
-extern "C" PyObject *PyInit_openscad(void) { return PyModule_Create(&OpenSCADModule); }
+extern "C" PyObject *PyInit_openscad(void)
+{
+  return PyModule_Create(&OpenSCADModule);
+}
 
 PyMODINIT_FUNC PyInit_PyOpenSCAD(void)
 {

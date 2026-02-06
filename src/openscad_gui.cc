@@ -123,7 +123,10 @@ QString assemblePath(const std::filesystem::path& absoluteBaseDir, const std::st
   return fileInfo.absoluteFilePath();
 }
 
-void dialogThreadFunc(FontCacheInitializer *initializer) { initializer->run(); }
+void dialogThreadFunc(FontCacheInitializer *initializer)
+{
+  initializer->run();
+}
 
 void dialogInitHandler(FontCacheInitializer *initializer, void *)
 {
@@ -157,7 +160,9 @@ void registerDefaultIcon(QString applicationFilePath)
                        QVariant(appPath));
 }
 #else
-void registerDefaultIcon(const QString&) {}
+void registerDefaultIcon(const QString&)
+{
+}
 #endif
 
 }  // namespace
@@ -249,6 +254,8 @@ int gui(std::vector<std::string>& inputFiles, const std::filesystem::path& origi
 
   QObject::connect(GlobalPreferences::inst(), &Preferences::applicationFontChanged, &app,
                    &OpenSCADApp::setApplicationFont);
+  QObject::connect(GlobalPreferences::inst(), &Preferences::renderBackend3DChanged, &app,
+                   &OpenSCADApp::setRenderBackend3D);
 
   set_render_color_scheme(arg_colorscheme, false);
   auto noInputFiles = false;
@@ -259,7 +266,14 @@ int gui(std::vector<std::string>& inputFiles, const std::filesystem::path& origi
   }
 
   auto showOnStartup = settings.value("launcher/showOnStartup");
-  if (noInputFiles && (showOnStartup.isNull() || showOnStartup.toBool())) {
+  bool showLauncher = noInputFiles && (showOnStartup.isNull() || showOnStartup.toBool());
+#ifdef ENABLE_GUI_TESTS
+  if (gui_test != "none") {
+    showLauncher = false;
+  }
+#endif
+
+  if (showLauncher) {
     LaunchingScreen launcher;
     if (launcher.exec() == QDialog::Accepted) {
       if (launcher.isForceShowEditor()) {

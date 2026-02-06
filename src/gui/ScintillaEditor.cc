@@ -101,27 +101,6 @@ QsciScintilla::WhitespaceVisibility SettingsConverter::toShowWhitespaces(const s
   }
 }
 
-EditorColorScheme::EditorColorScheme(const fs::path& path) : path(path)
-{
-  try {
-    boost::property_tree::read_json(path.generic_string(), pt);
-    _name = QString::fromStdString(pt.get<std::string>("name"));
-    _index = pt.get<int>("index");
-  } catch (const std::exception& e) {
-    LOG("Error reading color scheme file '%1$s': %2$s", path.generic_string(), e.what());
-    _name = "";
-    _index = 0;
-  }
-}
-
-bool EditorColorScheme::valid() const { return !_name.isEmpty(); }
-
-const QString& EditorColorScheme::name() const { return _name; }
-
-int EditorColorScheme::index() const { return _index; }
-
-const boost::property_tree::ptree& EditorColorScheme::propertyTree() const { return pt; }
-
 ScintillaEditor::ScintillaEditor(QWidget *parent) : EditorInterface(parent)
 {
   api = nullptr;
@@ -263,9 +242,15 @@ ScintillaEditor::ScintillaEditor(QWidget *parent) : EditorInterface(parent)
   qsci->SendScintilla(QsciScintillaBase::SCI_SETBUFFEREDDRAW, false);
 }
 
-QPoint ScintillaEditor::mapToGlobal(const QPoint& pos) { return qsci->mapToGlobal(pos); }
+QPoint ScintillaEditor::mapToGlobal(const QPoint& pos)
+{
+  return qsci->mapToGlobal(pos);
+}
 
-QMenu *ScintillaEditor::createStandardContextMenu() { return qsci->createStandardContextMenu(); }
+QMenu *ScintillaEditor::createStandardContextMenu()
+{
+  return qsci->createStandardContextMenu();
+}
 
 void ScintillaEditor::addTemplate()
 {
@@ -302,9 +287,15 @@ void ScintillaEditor::addTemplate(const fs::path& path)
   }
 }
 
-void ScintillaEditor::displayTemplates() { qsci->showUserList(1, userList); }
+void ScintillaEditor::displayTemplates()
+{
+  qsci->showUserList(1, userList);
+}
 
-void ScintillaEditor::foldUnfold() { qsci->foldAll(); }
+void ScintillaEditor::foldUnfold()
+{
+  qsci->foldAll();
+}
 
 /**
  * Apply the settings that are changeable in the preferences. This is also
@@ -371,7 +362,10 @@ void ScintillaEditor::setupAutoComplete(const bool forceOff)
   qsci->setAutoCompletionThreshold(val <= 0 ? 1 : val);
 }
 
-void ScintillaEditor::fireModificationChanged() { emit modificationChanged(this); }
+void ScintillaEditor::fireModificationChanged()
+{
+  emit modificationChanged(this);
+}
 
 void ScintillaEditor::setPlainText(const QString& text)
 {
@@ -379,7 +373,10 @@ void ScintillaEditor::setPlainText(const QString& text)
   setContentModified(false);
 }
 
-QString ScintillaEditor::toPlainText() { return qsci->text(); }
+QString ScintillaEditor::toPlainText()
+{
+  return qsci->text();
+}
 
 void ScintillaEditor::setContentModified(bool modified)
 {
@@ -388,7 +385,10 @@ void ScintillaEditor::setContentModified(bool modified)
   qsci->setModified(modified);
 }
 
-bool ScintillaEditor::isContentModified() { return qsci->isModified(); }
+bool ScintillaEditor::isContentModified()
+{
+  return qsci->isModified();
+}
 
 void ScintillaEditor::highlightError(int error_pos)
 {
@@ -710,63 +710,30 @@ void ScintillaEditor::noColor()
   qsci->setEdgeColor(Qt::black);
 }
 
-void ScintillaEditor::enumerateColorSchemesInPath(ScintillaEditor::colorscheme_set_t& result_set,
-                                                  const fs::path& path)
-{
-  const auto color_schemes = path / "color-schemes" / "editor";
-
-  if (fs::exists(color_schemes) && fs::is_directory(color_schemes)) {
-    for (const auto& dirEntry : boost::make_iterator_range(fs::directory_iterator{color_schemes}, {})) {
-      if (!fs::is_regular_file(dirEntry.status())) continue;
-
-      const auto& path = dirEntry.path();
-      if (!(path.extension() == ".json")) continue;
-
-      auto colorScheme = std::make_shared<EditorColorScheme>(path);
-      if (colorScheme->valid()) {
-        result_set.emplace(colorScheme->index(), colorScheme);
-      }
-    }
-  }
-}
-
-ScintillaEditor::colorscheme_set_t ScintillaEditor::enumerateColorSchemes()
-{
-  colorscheme_set_t result_set;
-
-  enumerateColorSchemesInPath(result_set, PlatformUtils::resourceBasePath());
-  enumerateColorSchemesInPath(result_set, PlatformUtils::userConfigPath());
-
-  return result_set;
-}
-
 QStringList ScintillaEditor::colorSchemes()
 {
-  QStringList colorSchemes;
-  for (const auto& colorSchemeEntry : enumerateColorSchemes()) {
-    colorSchemes << colorSchemeEntry.second.get()->name();
-  }
-  colorSchemes << "Off";
-
-  return colorSchemes;
+  return EditorColorMap::inst()->colorSchemeNames();
 }
 
-bool ScintillaEditor::canUndo() { return qsci->isUndoAvailable(); }
+bool ScintillaEditor::canUndo()
+{
+  return qsci->isUndoAvailable();
+}
 
 void ScintillaEditor::setHighlightScheme(const QString& name)
 {
-  for (const auto& colorSchemeEntry : enumerateColorSchemes()) {
-    const auto colorScheme = colorSchemeEntry.second.get();
-    if (colorScheme->name() == name) {
-      setColormap(colorScheme);
-      return;
-    }
+  auto scheme = EditorColorMap::inst()->getColorScheme(name);
+  if (scheme) {
+    setColormap(scheme.get());
+  } else {
+    noColor();
   }
-
-  noColor();
 }
 
-void ScintillaEditor::insert(const QString& text) { qsci->insert(text); }
+void ScintillaEditor::insert(const QString& text)
+{
+  qsci->insert(text);
+}
 
 void ScintillaEditor::setText(const QString& text)
 {
@@ -774,19 +741,40 @@ void ScintillaEditor::setText(const QString& text)
   qsci->replaceSelectedText(text);
 }
 
-void ScintillaEditor::undo() { qsci->undo(); }
+void ScintillaEditor::undo()
+{
+  qsci->undo();
+}
 
-void ScintillaEditor::redo() { qsci->redo(); }
+void ScintillaEditor::redo()
+{
+  qsci->redo();
+}
 
-void ScintillaEditor::cut() { qsci->cut(); }
+void ScintillaEditor::cut()
+{
+  qsci->cut();
+}
 
-void ScintillaEditor::copy() { qsci->copy(); }
+void ScintillaEditor::copy()
+{
+  qsci->copy();
+}
 
-void ScintillaEditor::paste() { qsci->paste(); }
+void ScintillaEditor::paste()
+{
+  qsci->paste();
+}
 
-void ScintillaEditor::zoomIn() { qsci->zoomIn(); }
+void ScintillaEditor::zoomIn()
+{
+  qsci->zoomIn();
+}
 
-void ScintillaEditor::zoomOut() { qsci->zoomOut(); }
+void ScintillaEditor::zoomOut()
+{
+  qsci->zoomOut();
+}
 
 void ScintillaEditor::initFont(const QString& fontName, uint size)
 {
@@ -820,8 +808,8 @@ int ScintillaEditor::updateFindIndicators(const QString& findText, bool visibili
   qsci->SendScintilla(QsciScintilla::SCI_SETINDICATORCURRENT, findIndicatorNumber);
   qsci->SendScintilla(qsci->SCI_INDICATORCLEARRANGE, 0, qsci->length());
 
-  const auto txt = qsci->text().toUtf8();
-  const auto findTextUtf8 = findText.toUtf8();
+  const auto txt = qsci->text().toUtf8().toLower();
+  const auto findTextUtf8 = findText.toUtf8().toLower();
   auto pos = txt.indexOf(findTextUtf8);
   auto len = findTextUtf8.length();
   if (visibility && len > 0) {
@@ -852,9 +840,20 @@ bool ScintillaEditor::find(const QString& expr, bool findNext, bool findBackward
   return qsci->findFirst(expr, false, false, false, true, !findBackwards, startline, startindex);
 }
 
-void ScintillaEditor::replaceSelectedText(const QString& newText)
+bool ScintillaEditor::replaceSelectedText(const QString& newText)
 {
-  if ((qsci->selectedText() != newText) && (qsci->hasSelectedText())) qsci->replaceSelectedText(newText);
+  if ((qsci->selectedText() != newText) && (qsci->hasSelectedText())) {
+    qsci->replaceSelectedText(newText);
+    return true;
+  }
+  return false;
+}
+
+void ScintillaEditor::insertOrReplaceText(const QString& newText)
+{
+  if (!replaceSelectedText(newText)) {
+    qsci->insert(newText);
+  }
 }
 
 void ScintillaEditor::replaceAll(const QString& findText, const QString& replaceText)
@@ -983,7 +982,10 @@ void ScintillaEditor::uncommentSelection()
   }
 }
 
-QString ScintillaEditor::selectedText() { return qsci->selectedText(); }
+QString ScintillaEditor::selectedText()
+{
+  return qsci->selectedText();
+}
 
 bool ScintillaEditor::eventFilter(QObject *obj, QEvent *e)
 {
